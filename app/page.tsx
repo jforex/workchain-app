@@ -1,215 +1,205 @@
 'use client'
 
 import { ConnectWallet } from './components/ConnectWallet'
-import { useEffect, useRef } from 'react'
+import { useState } from 'react'
+
+const categories = ['Web Dev', 'Design', 'Writing', 'Video', 'Marketing', 'AI', 'Mobile']
 
 export default function Home() {
-  const gridRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const canvas = gridRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-
-    const cols = Math.floor(canvas.width / 60)
-    const rows = Math.floor(canvas.height / 60)
-    const dots: { x: number; y: number; o: number; speed: number }[] = []
-
-    for (let i = 0; i <= cols; i++) {
-      for (let j = 0; j <= rows; j++) {
-        dots.push({
-          x: i * 60,
-          y: j * 60,
-          o: Math.random() * 0.3,
-          speed: 0.002 + Math.random() * 0.003,
-        })
-      }
-    }
-
-    let frame: number
-    let t = 0
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      t += 1
-      dots.forEach((d) => {
-        d.o = 0.06 + 0.1 * Math.sin(t * d.speed + d.x * 0.01 + d.y * 0.01)
-        ctx.beginPath()
-        ctx.arc(d.x, d.y, 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(37, 99, 235, ${d.o})`
-        ctx.fill()
-      })
-      frame = requestAnimationFrame(animate)
-    }
-    animate()
-
-    const resize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-    window.addEventListener('resize', resize)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('resize', resize)
-    }
-  }, [])
+  const [tab, setTab] = useState<'hire' | 'work'>('hire')
+  const [search, setSearch] = useState('')
 
   return (
-    <main className="min-h-screen bg-[#f8faff] text-gray-900 overflow-hidden">
+    <main className="min-h-screen bg-white text-gray-900">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-
         * { font-family: 'DM Sans', sans-serif; }
         .font-display { font-family: 'Syne', sans-serif; }
 
         .slide-up {
-          animation: slideUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
+          animation: slideUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards;
           opacity: 0;
         }
         .slide-up:nth-child(1) { animation-delay: 0.1s; }
-        .slide-up:nth-child(2) { animation-delay: 0.2s; }
-        .slide-up:nth-child(3) { animation-delay: 0.3s; }
-        .slide-up:nth-child(4) { animation-delay: 0.4s; }
-        .slide-up:nth-child(5) { animation-delay: 0.5s; }
+        .slide-up:nth-child(2) { animation-delay: 0.25s; }
+        .slide-up:nth-child(3) { animation-delay: 0.4s; }
+        .slide-up:nth-child(4) { animation-delay: 0.55s; }
 
         @keyframes slideUp {
-          from { opacity: 0; transform: translateY(30px); }
+          from { opacity: 0; transform: translateY(24px); }
           to { opacity: 1; transform: translateY(0); }
         }
 
-        .fade-in { animation: fadeIn 0.8s ease forwards; opacity: 0; }
-        @keyframes fadeIn { to { opacity: 1; } }
-
-        .tag-pulse {
-          animation: tagPulse 2s ease-in-out infinite;
-        }
-        @keyframes tagPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.2); }
-          50% { box-shadow: 0 0 0 6px rgba(37,99,235,0); }
-        }
-
-        .btn-primary {
-          background: linear-gradient(135deg, #2563eb, #1d4ed8);
-          transition: all 0.2s ease;
-          position: relative;
-          overflow: hidden;
-        }
-        .btn-primary:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 30px rgba(37,99,235,0.35);
-        }
-
         .card-hover {
-          transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         .card-hover:hover {
           transform: translateY(-4px);
-          box-shadow: 0 20px 60px rgba(37,99,235,0.1);
-          border-color: rgba(37,99,235,0.25);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.08);
         }
 
-        .stat-shimmer {
-          position: relative;
-          overflow: hidden;
+        .search-bar:focus-within {
+          box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
         }
-        .stat-shimmer::after {
-          content: '';
-          position: absolute;
-          top: 0; left: -100%;
-          width: 60%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(37,99,235,0.05), transparent);
-          animation: shimmer 3s ease-in-out infinite;
+
+        .category-tag {
+          transition: all 0.2s ease;
         }
-        @keyframes shimmer {
-          0% { left: -100%; }
-          100% { left: 200%; }
+        .category-tag:hover {
+          background: rgba(255,255,255,0.25);
+          border-color: rgba(255,255,255,0.6);
+        }
+
+        .tab-active {
+          background: white;
+          color: #1e40af;
+          font-weight: 600;
+        }
+        .tab-inactive {
+          color: rgba(255,255,255,0.85);
+        }
+        .tab-inactive:hover {
+          background: rgba(255,255,255,0.1);
         }
       `}</style>
 
-      {/* Animated dot grid */}
-      <canvas
-        ref={gridRef}
-        className="fixed inset-0 pointer-events-none"
-        style={{ zIndex: 0 }}
-      />
-
-      {/* Soft radial glow */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 70% 40% at 50% 0%, rgba(37,99,235,0.07), transparent)',
-          zIndex: 0,
-        }}
-      />
-
-      {/* Header */}
-      <header className="relative z-10 border-b border-blue-100 bg-white/70 backdrop-blur-md px-6 py-4 fade-in">
+      {/* Navbar */}
+      <header className="absolute top-0 left-0 right-0 z-20 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md">
-              <span className="text-xs font-display font-bold text-white">W</span>
+            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md">
+              <span className="text-xs font-display font-bold text-blue-600">W</span>
             </div>
             <div>
-              <span className="font-display font-bold text-gray-900 tracking-tight">WorkChain</span>
-              <span className="ml-2 text-[10px] text-blue-500/70 font-mono uppercase tracking-widest">Base</span>
+              <span className="font-display font-bold text-white tracking-tight">WorkChain</span>
+              <span className="ml-2 text-[10px] text-white/60 font-mono uppercase tracking-widest">Base</span>
             </div>
           </div>
-          <ConnectWallet />
+          <div className="flex items-center gap-4">
+            <button className="text-white/80 text-sm hover:text-white transition-colors">Find Work</button>
+            <button className="text-white/80 text-sm hover:text-white transition-colors">Find Talent</button>
+            <button className="text-white/80 text-sm hover:text-white transition-colors">How it Works</button>
+            <ConnectWallet />
+          </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
-        <div className="slide-up">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-mono px-4 py-2 rounded-full mb-8 tag-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-            Live on Base Sepolia · Escrow Contract Deployed
+      {/* Hero with video background */}
+      <section className="relative h-screen min-h-[600px] flex items-center">
+        {/* Video background */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/hero.mp4" type="video/mp4" />
+        </video>
+
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+
+        {/* Hero content */}
+        <div className="relative z-10 max-w-6xl mx-auto px-6 w-full">
+          <div className="max-w-2xl">
+
+            <div className="slide-up">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs font-mono px-4 py-2 rounded-full mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                Live on Base · Escrow Contract Deployed
+              </div>
+            </div>
+
+            <h1 className="font-display text-5xl md:text-6xl font-extrabold leading-tight text-white mb-4 slide-up">
+              Hire the talent<br />
+              your work demands.<br />
+              <span className="text-blue-400">Get paid. Always.</span>
+            </h1>
+
+            <p className="text-white/70 text-lg mb-8 slide-up">
+              Trustless escrow. Onchain reputation. AI dispute resolution.<br />
+              The gig platform built for a world without broken promises.
+            </p>
+
+            {/* Toggle */}
+            <div className="slide-up">
+              <div className="inline-flex bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-1 mb-4">
+                <button
+                  onClick={() => setTab('hire')}
+                  className={`px-6 py-2 rounded-lg text-sm transition-all ${tab === 'hire' ? 'tab-active' : 'tab-inactive'}`}
+                >
+                  I want to hire
+                </button>
+                <button
+                  onClick={() => setTab('work')}
+                  className={`px-6 py-2 rounded-lg text-sm transition-all ${tab === 'work' ? 'tab-active' : 'tab-inactive'}`}
+                >
+                  I want to work
+                </button>
+              </div>
+
+              {/* Search bar */}
+              <div className="search-bar flex items-center bg-white rounded-2xl overflow-hidden shadow-2xl mb-4 transition-all">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={tab === 'hire' ? 'Describe what you need done...' : 'Search for jobs...'}
+                  className="flex-1 px-6 py-4 text-gray-800 text-sm outline-none placeholder-gray-400"
+                />
+                <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-sm font-medium transition-colors">
+                  Search
+                </button>
+              </div>
+
+              {/* Category tags */}
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    className="category-tag px-4 py-1.5 bg-white/10 backdrop-blur-sm border border-white/25 text-white text-xs rounded-full transition-all"
+                  >
+                    {cat} →
+                  </button>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
+      </section>
 
-        <h1 className="font-display text-6xl md:text-7xl font-extrabold leading-none tracking-tight mb-6 slide-up">
-          <span className="block text-gray-900">Get paid.</span>
-          <span className="block text-gray-900">Build trust.</span>
-          <span className="block text-blue-600">No middleman.</span>
-        </h1>
-
-        <p className="text-gray-500 text-lg max-w-lg mx-auto mb-10 leading-relaxed slide-up">
-          Trustless gig platform where payments live in escrow, reputation is
-          onchain, and disputes are settled by AI — not humans.
-        </p>
-
-        <div className="flex gap-4 justify-center slide-up">
-          <button className="btn-primary px-8 py-3.5 text-white font-medium rounded-xl text-sm shadow-md">
-            Post a Job
-          </button>
-          <button className="px-8 py-3.5 text-gray-600 font-medium rounded-xl text-sm border border-gray-200 hover:border-blue-300 hover:text-blue-600 bg-white transition-all shadow-sm">
-            Find Work
-          </button>
-        </div>
-
-        {/* Stats bar */}
-        <div className="mt-16 grid grid-cols-3 gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 shadow-sm slide-up">
-          {[
-            { label: 'Escrow Contract', value: 'Live', sub: 'Base Sepolia' },
-            { label: 'Gas Fees', value: '$0.00', sub: 'Paymaster sponsored' },
-            { label: 'Settlement', value: 'AI-powered', sub: 'No arbitrator' },
-          ].map((s, i) => (
-            <div key={i} className="bg-white px-6 py-5 stat-shimmer">
-              <div className="font-display font-bold text-gray-900 text-xl">{s.value}</div>
-              <div className="text-gray-400 text-xs mt-1">{s.label}</div>
-              <div className="text-blue-500 text-[10px] font-mono mt-0.5">{s.sub}</div>
-            </div>
-          ))}
+      {/* Stats bar */}
+      <section className="bg-white border-b border-gray-100 py-6">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-3 gap-8 text-center">
+            {[
+              { value: 'Zero Fees', label: 'Gas sponsored by Paymaster' },
+              { value: 'USDC', label: 'Stable payments, always' },
+              { value: 'AI-Resolved', label: 'Disputes settled onchain' },
+            ].map((s, i) => (
+              <div key={i}>
+                <div className="font-display font-bold text-gray-900 text-xl">{s.value}</div>
+                <div className="text-gray-400 text-sm mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="font-display text-4xl font-bold text-gray-900 mb-4">
+            Why WorkChain?
+          </h2>
+          <p className="text-gray-400 max-w-xl mx-auto">
+            Built different. Every payment, reputation, and dispute lives onchain — transparent, permanent, and tamper-proof.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
               icon: '⬡',
@@ -248,14 +238,22 @@ export default function Home() {
             </div>
           ))}
         </div>
+      </section>
 
-        {/* Bottom tag */}
-        <div className="mt-12 text-center">
+      {/* Footer */}
+      <footer className="border-t border-gray-100 py-8">
+        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white">W</span>
+            </div>
+            <span className="font-display font-bold text-gray-900 text-sm">WorkChain</span>
+          </div>
           <span className="text-gray-300 text-xs font-mono tracking-widest uppercase">
-            Built on Base · Powered by USDC · AI-resolved disputes
+            Built on Base · Powered by USDC
           </span>
         </div>
-      </section>
+      </footer>
     </main>
   )
 }

@@ -5,10 +5,10 @@ import { baseAccount, injected } from 'wagmi/connectors'
 export const config = createConfig({
   chains: [base],
   connectors: [
-    injected(),
     baseAccount({
       appName: 'WorkChain',
     }),
+    injected(),
   ],
   storage: createStorage({ storage: cookieStorage }),
   ssr: true,
