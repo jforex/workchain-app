@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
 import { WORKCHAIN_ESCROW_ADDRESS, WORKCHAIN_ESCROW_ABI } from '@/config/contracts'
+import { ConnectWallet } from '../components/ConnectWallet'
 import Link from 'next/link'
 
 type PaymentType = 'OneTime' | 'Milestone' | 'Recurring'
@@ -103,8 +104,8 @@ export default function PostContract() {
           <p className="text-gray-400 text-sm mb-6">
             Your contract has been proposed. The freelancer needs to sign and activate it.
           </p>
-          <Link href="/" className="px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-            Back to Home
+          <Link href="/jobs" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+            View Job Board →
           </Link>
         </div>
       </div>
@@ -117,6 +118,16 @@ export default function PostContract() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap');
         * { font-family: 'DM Sans', sans-serif; }
         .font-display { font-family: 'Syne', sans-serif; }
+        input, textarea, select {
+          color: #111827 !important;
+          -webkit-text-fill-color: #111827 !important;
+          opacity: 1 !important;
+        }
+        input::placeholder, textarea::placeholder {
+          color: #9ca3af !important;
+          -webkit-text-fill-color: #9ca3af !important;
+          opacity: 1 !important;
+        }
       `}</style>
 
       {/* Header */}
@@ -128,11 +139,7 @@ export default function PostContract() {
             </div>
             <span className="font-display font-bold text-gray-900">WorkChain</span>
           </Link>
-          {isConnected && (
-            <span className="font-mono text-xs bg-gray-100 px-3 py-1.5 rounded-lg text-gray-500">
-              {address?.slice(0, 6)}...{address?.slice(-4)}
-            </span>
-          )}
+          <ConnectWallet />
         </div>
       </header>
 
@@ -171,7 +178,7 @@ export default function PostContract() {
                   value={form.freelancer}
                   onChange={(e) => setForm({ ...form, freelancer: e.target.value })}
                   placeholder="0x..."
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors font-mono"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors font-mono"
                 />
               </div>
               <div>
@@ -181,7 +188,7 @@ export default function PostContract() {
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="e.g. Build a landing page for my startup"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors"
                 />
               </div>
               <div>
@@ -191,7 +198,7 @@ export default function PostContract() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Describe the work in detail..."
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors resize-none"
                 />
               </div>
               <div>
@@ -200,7 +207,7 @@ export default function PostContract() {
                   type="datetime-local"
                   value={form.deadline}
                   onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors"
                 />
               </div>
               <button
@@ -250,7 +257,7 @@ export default function PostContract() {
                     value={form.totalAmount}
                     onChange={(e) => setForm({ ...form, totalAmount: e.target.value })}
                     placeholder="0.00"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors"
                   />
                 </div>
               )}
@@ -272,7 +279,7 @@ export default function PostContract() {
                         value={m.description}
                         onChange={(e) => updateMilestone(i, 'description', e.target.value)}
                         placeholder="Milestone description"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-blue-400"
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <input
@@ -280,13 +287,13 @@ export default function PostContract() {
                           value={m.amount}
                           onChange={(e) => updateMilestone(i, 'amount', e.target.value)}
                           placeholder="Amount (USDC)"
-                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400"
+                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-blue-400"
                         />
                         <input
                           type="datetime-local"
                           value={m.deadline}
                           onChange={(e) => updateMilestone(i, 'deadline', e.target.value)}
-                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-400"
+                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-blue-400"
                         />
                       </div>
                     </div>
@@ -313,7 +320,7 @@ export default function PostContract() {
                       value={form.recurringAmount}
                       onChange={(e) => setForm({ ...form, recurringAmount: e.target.value })}
                       placeholder="0.00"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400"
                     />
                   </div>
                   <div>
@@ -321,7 +328,7 @@ export default function PostContract() {
                     <select
                       value={form.recurringInterval}
                       onChange={(e) => setForm({ ...form, recurringInterval: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400"
                     >
                       <option value="7">Weekly (every 7 days)</option>
                       <option value="14">Bi-weekly (every 14 days)</option>
@@ -335,7 +342,7 @@ export default function PostContract() {
                       value={form.recurringCount}
                       onChange={(e) => setForm({ ...form, recurringCount: e.target.value })}
                       placeholder="e.g. 3 for 3 months"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400"
                     />
                   </div>
                   {form.recurringAmount && form.recurringCount && (
