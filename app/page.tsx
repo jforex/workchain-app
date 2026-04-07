@@ -78,7 +78,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/post-contract" className="text-white/80 text-sm hover:text-white transition-colors">Post a Job</Link>
-            <button className="text-white/80 text-sm hover:text-white transition-colors">Find Work</button>
+            <Link href="/jobs" className="text-white/80 text-sm hover:text-white transition-colors">Find Work</Link>
             <button className="text-white/80 text-sm hover:text-white transition-colors">Find Talent</button>
             <button className="text-white/80 text-sm hover:text-white transition-colors">How it Works</button>
             <ConnectWallet />
