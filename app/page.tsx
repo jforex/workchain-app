@@ -1,7 +1,8 @@
 'use client'
 
 import { ConnectWallet } from './components/ConnectWallet'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 
 const categories = ['Web Dev', 'Design', 'Writing', 'Video', 'Marketing', 'AI', 'Mobile']
 
@@ -76,6 +77,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/post-contract" className="text-white/80 text-sm hover:text-white transition-colors">Post a Job</Link>
             <button className="text-white/80 text-sm hover:text-white transition-colors">Find Work</button>
             <button className="text-white/80 text-sm hover:text-white transition-colors">Find Talent</button>
             <button className="text-white/80 text-sm hover:text-white transition-colors">How it Works</button>
@@ -86,7 +88,6 @@ export default function Home() {
 
       {/* Hero with video background */}
       <section className="relative h-screen min-h-[600px] flex items-center">
-        {/* Video background */}
         <video
           autoPlay
           muted
@@ -97,10 +98,8 @@ export default function Home() {
           <source src="/hero.mp4" type="video/mp4" />
         </video>
 
-        {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
 
-        {/* Hero content */}
         <div className="relative z-10 max-w-6xl mx-auto px-6 w-full">
           <div className="max-w-2xl">
 
@@ -122,7 +121,6 @@ export default function Home() {
               The gig platform built for a world without broken promises.
             </p>
 
-            {/* Toggle */}
             <div className="slide-up">
               <div className="inline-flex bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-1 mb-4">
                 <button
@@ -139,7 +137,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Search bar */}
               <div className="search-bar flex items-center bg-white rounded-2xl overflow-hidden shadow-2xl mb-4 transition-all">
                 <input
                   type="text"
@@ -148,12 +145,17 @@ export default function Home() {
                   placeholder={tab === 'hire' ? 'Describe what you need done...' : 'Search for jobs...'}
                   className="flex-1 px-6 py-4 text-gray-800 text-sm outline-none placeholder-gray-400"
                 />
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-sm font-medium transition-colors">
-                  Search
-                </button>
+                {tab === 'hire' ? (
+                  <Link href="/post-contract" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-sm font-medium transition-colors">
+                    Post Job
+                  </Link>
+                ) : (
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-sm font-medium transition-colors">
+                    Search
+                  </button>
+                )}
               </div>
 
-              {/* Category tags */}
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <button
