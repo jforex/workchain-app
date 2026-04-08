@@ -1,13 +1,13 @@
-export const WORKCHAIN_ESCROW_ADDRESS = '0xf792cA409B09FA9bE110fF9F3DF9e24336c31233' as const
+export const WORKCHAIN_ESCROW_ADDRESS = '0xEa04d926132eEA022E676B2A842E7CaD6Ec36aEF' as const
 
 export const WORKCHAIN_ESCROW_ABI = [
   {
     type: 'function',
-    name: 'proposeContract',
+    name: 'postOpenJob',
     inputs: [
-      { name: '_freelancer', type: 'address' },
       { name: '_title', type: 'string' },
       { name: '_description', type: 'string' },
+      { name: '_category', type: 'string' },
       { name: '_paymentType', type: 'uint8' },
       { name: '_totalAmount', type: 'uint256' },
       { name: '_deadline', type: 'uint256' },
@@ -16,6 +16,45 @@ export const WORKCHAIN_ESCROW_ABI = [
       { name: '_recurringCount', type: 'uint256' },
     ],
     outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'proposeDirectContract',
+    inputs: [
+      { name: '_freelancer', type: 'address' },
+      { name: '_title', type: 'string' },
+      { name: '_description', type: 'string' },
+      { name: '_category', type: 'string' },
+      { name: '_paymentType', type: 'uint8' },
+      { name: '_totalAmount', type: 'uint256' },
+      { name: '_deadline', type: 'uint256' },
+      { name: '_recurringAmount', type: 'uint256' },
+      { name: '_recurringInterval', type: 'uint256' },
+      { name: '_recurringCount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'applyForJob',
+    inputs: [
+      { name: '_contractId', type: 'uint256' },
+      { name: '_coverNote', type: 'string' },
+      { name: '_proposedRate', type: 'uint256' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'selectFreelancer',
+    inputs: [
+      { name: '_contractId', type: 'uint256' },
+      { name: '_freelancer', type: 'address' },
+    ],
+    outputs: [],
     stateMutability: 'nonpayable',
   },
   {
@@ -116,7 +155,9 @@ export const WORKCHAIN_ESCROW_ABI = [
           { name: 'freelancer', type: 'address' },
           { name: 'title', type: 'string' },
           { name: 'description', type: 'string' },
+          { name: 'category', type: 'string' },
           { name: 'paymentType', type: 'uint8' },
+          { name: 'contractType', type: 'uint8' },
           { name: 'status', type: 'uint8' },
           { name: 'totalAmount', type: 'uint256' },
           { name: 'createdAt', type: 'uint256' },
@@ -152,6 +193,32 @@ export const WORKCHAIN_ESCROW_ABI = [
         ],
       },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getApplications',
+    inputs: [{ name: '_contractId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple[]',
+        components: [
+          { name: 'freelancer', type: 'address' },
+          { name: 'coverNote', type: 'string' },
+          { name: 'proposedRate', type: 'uint256' },
+          { name: 'appliedAt', type: 'uint256' },
+          { name: 'selected', type: 'bool' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getApplicationCount',
+    inputs: [{ name: '_contractId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
   },
   {

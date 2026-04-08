@@ -9,6 +9,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     // ─── Enums ───────────────────────────────────────────────
     enum ContractStatus { Proposed, Active, Completed, Disputed, Resolved, Cancelled, Expired }
     enum PaymentType { OneTime, Milestone, Recurring }
+    enum ContractType { Direct, Open }
 
     // ─── Structs ─────────────────────────────────────────────
     struct Milestone {
@@ -19,12 +20,22 @@ contract WorkChainEscrow is ReentrancyGuard {
         bool disputed;
     }
 
+    struct Application {
+        address freelancer;
+        string coverNote;
+        uint256 proposedRate;
+        uint256 appliedAt;
+        bool selected;
+    }
+
     struct WorkContract {
         address client;
         address freelancer;
         string title;
         string description;
+        string category;
         PaymentType paymentType;
+        ContractType contractType;
         ContractStatus status;
         uint256 totalAmount;
         uint256 createdAt;
@@ -49,13 +60,14 @@ contract WorkChainEscrow is ReentrancyGuard {
 
     mapping(uint256 => WorkContract) public contracts;
     mapping(uint256 => Milestone[]) public milestones;
+    mapping(uint256 => Application[]) public applications;
 
     // ─── Events ───────────────────────────────────────────────
-    event ContractProposed(uint256 indexed contractId, address indexed client, address indexed freelancer, string title);
-    event ContractSigned(uint256 indexed contractId, address signer);
+    event ContractProposed(uint256 indexed contractId, address indexed client, string title, uint8 contractType);
+    event ApplicationSubmitted(uint256 indexed contractId, address indexed freelancer);
+    event FreelancerSelected(uint256 indexed contractId, address indexed freelancer);
     event ContractActivated(uint256 indexed contractId);
     event MilestoneReleased(uint256 indexed contractId, uint256 milestoneIndex, uint256 amount);
-    event MilestoneDisputed(uint256 indexed contractId, uint256 milestoneIndex);
     event RecurringPaymentReleased(uint256 indexed contractId, uint256 amount, uint256 periodNumber);
     event ExtensionRequested(uint256 indexed contractId, address requester, uint256 proposedDeadline);
     event ExtensionApproved(uint256 indexed contractId, uint256 newDeadline);
@@ -68,31 +80,30 @@ contract WorkChainEscrow is ReentrancyGuard {
         USDC = IERC20(_usdc);
     }
 
-    // ─── 1. Propose a contract ────────────────────────────────
-    function proposeContract(
-        address _freelancer,
+    // ─── 1. Post an open job (no freelancer specified) ────────
+    function postOpenJob(
         string calldata _title,
         string calldata _description,
+        string calldata _category,
         PaymentType _paymentType,
         uint256 _totalAmount,
         uint256 _deadline,
-        // Recurring params (0 if not recurring)
         uint256 _recurringAmount,
         uint256 _recurringInterval,
         uint256 _recurringCount
     ) external returns (uint256) {
-        require(_freelancer != address(0), "Invalid freelancer");
-        require(_freelancer != msg.sender, "Cannot hire yourself");
         require(_totalAmount > 0, "Amount must be > 0");
         require(_deadline > block.timestamp, "Deadline must be in future");
 
         uint256 contractId = ++contractCount;
         WorkContract storage c = contracts[contractId];
         c.client = msg.sender;
-        c.freelancer = _freelancer;
+        c.freelancer = address(0);
         c.title = _title;
         c.description = _description;
+        c.category = _category;
         c.paymentType = _paymentType;
+        c.contractType = ContractType.Open;
         c.status = ContractStatus.Proposed;
         c.totalAmount = _totalAmount;
         c.createdAt = block.timestamp;
@@ -108,11 +119,122 @@ contract WorkChainEscrow is ReentrancyGuard {
             c.recurringCount = _recurringCount;
         }
 
-        emit ContractProposed(contractId, msg.sender, _freelancer, _title);
+        emit ContractProposed(contractId, msg.sender, _title, uint8(ContractType.Open));
         return contractId;
     }
 
-    // ─── 2. Add milestones (client only, before activation) ──
+    // ─── 2. Propose a direct contract (freelancer specified) ──
+    function proposeDirectContract(
+        address _freelancer,
+        string calldata _title,
+        string calldata _description,
+        string calldata _category,
+        PaymentType _paymentType,
+        uint256 _totalAmount,
+        uint256 _deadline,
+        uint256 _recurringAmount,
+        uint256 _recurringInterval,
+        uint256 _recurringCount
+    ) external returns (uint256) {
+        require(_freelancer != address(0), "Invalid freelancer");
+        require(_freelancer != msg.sender, "Cannot hire yourself");
+        require(_totalAmount > 0, "Amount must be > 0");
+        require(_deadline > block.timestamp, "Deadline must be in future");
+
+        uint256 contractId = ++contractCount;
+        WorkContract storage c = contracts[contractId];
+        c.client = msg.sender;
+        c.freelancer = _freelancer;
+        c.title = _title;
+        c.description = _description;
+        c.category = _category;
+        c.paymentType = _paymentType;
+        c.contractType = ContractType.Direct;
+        c.status = ContractStatus.Proposed;
+        c.totalAmount = _totalAmount;
+        c.createdAt = block.timestamp;
+        c.deadline = _deadline;
+        c.clientSigned = true;
+
+        if (_paymentType == PaymentType.Recurring) {
+            c.recurringAmount = _recurringAmount;
+            c.recurringInterval = _recurringInterval;
+            c.recurringCount = _recurringCount;
+        }
+
+        emit ContractProposed(contractId, msg.sender, _title, uint8(ContractType.Direct));
+        return contractId;
+    }
+
+    // ─── 3. Apply for an open job ─────────────────────────────
+    function applyForJob(
+        uint256 _contractId,
+        string calldata _coverNote,
+        uint256 _proposedRate
+    ) external {
+        WorkContract storage c = contracts[_contractId];
+        require(c.contractType == ContractType.Open, "Not an open job");
+        require(c.status == ContractStatus.Proposed, "Job not open");
+        require(c.client != msg.sender, "Client cannot apply");
+
+        // Check not already applied
+        Application[] storage apps = applications[_contractId];
+        for (uint256 i = 0; i < apps.length; i++) {
+            require(apps[i].freelancer != msg.sender, "Already applied");
+        }
+
+        applications[_contractId].push(Application({
+            freelancer: msg.sender,
+            coverNote: _coverNote,
+            proposedRate: _proposedRate,
+            appliedAt: block.timestamp,
+            selected: false
+        }));
+
+        emit ApplicationSubmitted(_contractId, msg.sender);
+    }
+
+    // ─── 4. Client selects a freelancer from applications ─────
+    function selectFreelancer(uint256 _contractId, address _freelancer) external {
+        WorkContract storage c = contracts[_contractId];
+        require(msg.sender == c.client, "Only client");
+        require(c.contractType == ContractType.Open, "Not an open job");
+        require(c.status == ContractStatus.Proposed, "Job not open");
+
+        // Verify freelancer applied
+        Application[] storage apps = applications[_contractId];
+        bool found = false;
+        for (uint256 i = 0; i < apps.length; i++) {
+            if (apps[i].freelancer == _freelancer) {
+                apps[i].selected = true;
+                found = true;
+                break;
+            }
+        }
+        require(found, "Freelancer did not apply");
+
+        c.freelancer = _freelancer;
+        emit FreelancerSelected(_contractId, _freelancer);
+    }
+
+    // ─── 5. Freelancer signs and activates ────────────────────
+    function signAndActivate(uint256 _contractId) external nonReentrant {
+        WorkContract storage c = contracts[_contractId];
+        require(msg.sender == c.freelancer, "Only assigned freelancer");
+        require(c.status == ContractStatus.Proposed, "Not proposed");
+        require(c.clientSigned, "Client not signed");
+        require(c.freelancer != address(0), "No freelancer assigned");
+
+        c.freelancerSigned = true;
+        c.status = ContractStatus.Active;
+        c.lastPaymentAt = block.timestamp;
+
+        require(USDC.transferFrom(c.client, address(this), c.totalAmount), "USDC lock failed");
+
+        emit ContractActivated(_contractId);
+    }
+
+    // ─── 6. Add milestones ────────────────────────────────────
     function addMilestones(
         uint256 _contractId,
         string[] calldata _descriptions,
@@ -121,7 +243,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     ) external {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.client, "Only client");
-        require(c.status == ContractStatus.Proposed, "Contract already active");
+        require(c.status == ContractStatus.Proposed, "Not proposed");
         require(_descriptions.length == _amounts.length && _amounts.length == _deadlines.length, "Array mismatch");
 
         uint256 total = 0;
@@ -138,29 +260,11 @@ contract WorkChainEscrow is ReentrancyGuard {
         require(total == c.totalAmount, "Milestone amounts must equal total");
     }
 
-    // ─── 3. Freelancer signs + activates contract ─────────────
-    function signAndActivate(uint256 _contractId) external nonReentrant {
-        WorkContract storage c = contracts[_contractId];
-        require(msg.sender == c.freelancer, "Only freelancer can sign");
-        require(c.status == ContractStatus.Proposed, "Not in proposed state");
-        require(c.clientSigned, "Client has not signed");
-
-        c.freelancerSigned = true;
-        c.status = ContractStatus.Active;
-        c.lastPaymentAt = block.timestamp;
-
-        // Lock funds from client
-        require(USDC.transferFrom(c.client, address(this), c.totalAmount), "USDC lock failed");
-
-        emit ContractSigned(_contractId, msg.sender);
-        emit ContractActivated(_contractId);
-    }
-
-    // ─── 4. Release milestone payment ─────────────────────────
+    // ─── 7. Release milestone ─────────────────────────────────
     function releaseMilestone(uint256 _contractId, uint256 _milestoneIndex) external nonReentrant {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.client, "Only client");
-        require(c.status == ContractStatus.Active, "Contract not active");
+        require(c.status == ContractStatus.Active, "Not active");
 
         Milestone storage m = milestones[_contractId][_milestoneIndex];
         require(!m.released, "Already released");
@@ -170,27 +274,21 @@ contract WorkChainEscrow is ReentrancyGuard {
         require(USDC.transfer(c.freelancer, m.amount), "Transfer failed");
 
         emit MilestoneReleased(_contractId, _milestoneIndex, m.amount);
-
-        // Check if all milestones released
         _checkAllMilestonesReleased(_contractId);
     }
 
-    // ─── 5. Release recurring payment ─────────────────────────
+    // ─── 8. Release recurring payment ─────────────────────────
     function releaseRecurringPayment(uint256 _contractId) external nonReentrant {
         WorkContract storage c = contracts[_contractId];
-        require(c.status == ContractStatus.Active, "Contract not active");
-        require(c.paymentType == PaymentType.Recurring, "Not a recurring contract");
-        require(
-            block.timestamp >= c.lastPaymentAt + c.recurringInterval,
-            "Payment interval not reached"
-        );
-        require(c.recurringPaid < c.recurringCount, "All payments made");
+        require(c.status == ContractStatus.Active, "Not active");
+        require(c.paymentType == PaymentType.Recurring, "Not recurring");
+        require(block.timestamp >= c.lastPaymentAt + c.recurringInterval, "Too early");
+        require(c.recurringPaid < c.recurringCount, "All paid");
 
         c.lastPaymentAt = block.timestamp;
         c.recurringPaid++;
 
         require(USDC.transfer(c.freelancer, c.recurringAmount), "Transfer failed");
-
         emit RecurringPaymentReleased(_contractId, c.recurringAmount, c.recurringPaid);
 
         if (c.recurringPaid == c.recurringCount) {
@@ -198,16 +296,13 @@ contract WorkChainEscrow is ReentrancyGuard {
         }
     }
 
-    // ─── 6. Request deadline extension ────────────────────────
+    // ─── 9. Request extension ─────────────────────────────────
     function requestExtension(uint256 _contractId, uint256 _newDeadline) external {
         WorkContract storage c = contracts[_contractId];
-        require(c.status == ContractStatus.Active, "Contract not active");
-        require(
-            msg.sender == c.client || msg.sender == c.freelancer,
-            "Not a party"
-        );
-        require(_newDeadline > c.deadline, "New deadline must be later");
-        require(c.extensionRequestedBy == 0, "Extension already pending");
+        require(c.status == ContractStatus.Active, "Not active");
+        require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
+        require(_newDeadline > c.deadline, "Must be later");
+        require(c.extensionRequestedBy == 0, "Extension pending");
 
         c.extensionRequestedBy = uint256(uint160(msg.sender));
         c.proposedDeadline = _newDeadline;
@@ -215,19 +310,13 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit ExtensionRequested(_contractId, msg.sender, _newDeadline);
     }
 
-    // ─── 7. Approve extension ─────────────────────────────────
+    // ─── 10. Approve extension ────────────────────────────────
     function approveExtension(uint256 _contractId) external {
         WorkContract storage c = contracts[_contractId];
-        require(c.status == ContractStatus.Active, "Contract not active");
+        require(c.status == ContractStatus.Active, "Not active");
         require(c.extensionRequestedBy != 0, "No extension pending");
-        require(
-            msg.sender == c.client || msg.sender == c.freelancer,
-            "Not a party"
-        );
-        require(
-            uint256(uint160(msg.sender)) != c.extensionRequestedBy,
-            "Cannot approve own request"
-        );
+        require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
+        require(uint256(uint160(msg.sender)) != c.extensionRequestedBy, "Cannot approve own request");
 
         c.deadline = c.proposedDeadline;
         c.extensionRequestedBy = 0;
@@ -236,18 +325,14 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit ExtensionApproved(_contractId, c.deadline);
     }
 
-    // ─── 8. Mark contract expired ─────────────────────────────
+    // ─── 11. Mark expired ─────────────────────────────────────
     function markExpired(uint256 _contractId) external {
         WorkContract storage c = contracts[_contractId];
-        require(c.status == ContractStatus.Active, "Contract not active");
-        require(block.timestamp > c.deadline, "Deadline not passed");
-        require(
-            msg.sender == c.client || msg.sender == c.freelancer,
-            "Not a party"
-        );
+        require(c.status == ContractStatus.Active, "Not active");
+        require(block.timestamp > c.deadline, "Not expired");
+        require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
 
         c.status = ContractStatus.Expired;
-        // Refund remaining unlocked funds to client
         uint256 remaining = _getRemainingBalance(_contractId);
         if (remaining > 0) {
             require(USDC.transfer(c.client, remaining), "Refund failed");
@@ -256,27 +341,21 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit ContractExpired(_contractId);
     }
 
-    // ─── 9. Raise dispute ─────────────────────────────────────
+    // ─── 12. Raise dispute ────────────────────────────────────
     function raiseDispute(uint256 _contractId) external {
         WorkContract storage c = contracts[_contractId];
-        require(c.status == ContractStatus.Active, "Contract not active");
-        require(
-            msg.sender == c.client || msg.sender == c.freelancer,
-            "Not a party"
-        );
+        require(c.status == ContractStatus.Active, "Not active");
+        require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
 
         c.status = ContractStatus.Disputed;
         emit ContractDisputed(_contractId);
     }
 
-    // ─── 10. Resolve dispute (AI oracle) ──────────────────────
+    // ─── 13. Resolve dispute (AI oracle) ──────────────────────
     function resolveDispute(uint256 _contractId, address _winner, uint256 _amount) external nonReentrant {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Disputed, "Not disputed");
-        require(
-            _winner == c.client || _winner == c.freelancer,
-            "Winner must be a party"
-        );
+        require(_winner == c.client || _winner == c.freelancer, "Invalid winner");
 
         c.status = ContractStatus.Resolved;
         require(USDC.transfer(_winner, _amount), "Transfer failed");
@@ -284,21 +363,16 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit ContractResolved(_contractId, _winner, _amount);
     }
 
-    // ─── 11. Cancel contract ──────────────────────────────────
+    // ─── 14. Cancel contract ──────────────────────────────────
     function cancelContract(uint256 _contractId) external nonReentrant {
         WorkContract storage c = contracts[_contractId];
-        require(
-            msg.sender == c.client || msg.sender == c.freelancer,
-            "Not a party"
-        );
-        require(
-            c.status == ContractStatus.Proposed || c.status == ContractStatus.Active,
-            "Cannot cancel"
-        );
+        require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
+        require(c.status == ContractStatus.Proposed || c.status == ContractStatus.Active, "Cannot cancel");
 
+        ContractStatus prevStatus = c.status;
         c.status = ContractStatus.Cancelled;
 
-        if (c.status == ContractStatus.Active) {
+        if (prevStatus == ContractStatus.Active) {
             uint256 remaining = _getRemainingBalance(_contractId);
             if (remaining > 0) {
                 require(USDC.transfer(c.client, remaining), "Refund failed");
@@ -317,8 +391,12 @@ contract WorkChainEscrow is ReentrancyGuard {
         return milestones[_contractId];
     }
 
-    function getMilestoneCount(uint256 _contractId) external view returns (uint256) {
-        return milestones[_contractId].length;
+    function getApplications(uint256 _contractId) external view returns (Application[] memory) {
+        return applications[_contractId];
+    }
+
+    function getApplicationCount(uint256 _contractId) external view returns (uint256) {
+        return applications[_contractId].length;
     }
 
     // ─── Internal helpers ─────────────────────────────────────

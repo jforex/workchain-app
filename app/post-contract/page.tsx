@@ -8,6 +8,9 @@ import { ConnectWallet } from '../components/ConnectWallet'
 import Link from 'next/link'
 
 type PaymentType = 'OneTime' | 'Milestone' | 'Recurring'
+type ContractMode = 'Open' | 'Direct'
+
+const CATEGORIES = ['Web Dev', 'Design', 'Writing', 'Video', 'Marketing', 'AI', 'Mobile', 'Other']
 
 interface Milestone {
   description: string
@@ -18,11 +21,13 @@ interface Milestone {
 export default function PostContract() {
   const { address, isConnected } = useAccount()
   const [step, setStep] = useState(1)
+  const [contractMode, setContractMode] = useState<ContractMode>('Open')
   const [paymentType, setPaymentType] = useState<PaymentType>('OneTime')
   const [form, setForm] = useState({
     freelancer: '',
     title: '',
     description: '',
+    category: 'Web Dev',
     totalAmount: '',
     deadline: '',
     recurringAmount: '',
@@ -63,36 +68,49 @@ export default function PostContract() {
   const handleSubmit = async () => {
     if (!isConnected) return
 
-    const totalAmount = parseUnits(getTotalAmount(), 6)
+    const totalAmount = parseUnits(getTotalAmount() || '0', 6)
     const deadline = Math.floor(new Date(form.deadline).getTime() / 1000)
     const paymentTypeIndex = paymentType === 'OneTime' ? 0 : paymentType === 'Milestone' ? 1 : 2
+    const recurringAmount = paymentType === 'Recurring' ? parseUnits(form.recurringAmount, 6) : BigInt(0)
+    const recurringInterval = paymentType === 'Recurring' ? BigInt(parseInt(form.recurringInterval) * 24 * 60 * 60) : BigInt(0)
+    const recurringCount = paymentType === 'Recurring' ? BigInt(parseInt(form.recurringCount)) : BigInt(0)
 
-    const recurringAmount = paymentType === 'Recurring'
-      ? parseUnits(form.recurringAmount, 6)
-      : BigInt(0)
-    const recurringInterval = paymentType === 'Recurring'
-      ? BigInt(parseInt(form.recurringInterval) * 24 * 60 * 60)
-      : BigInt(0)
-    const recurringCount = paymentType === 'Recurring'
-      ? BigInt(parseInt(form.recurringCount))
-      : BigInt(0)
-
-    writeContract({
-      address: WORKCHAIN_ESCROW_ADDRESS,
-      abi: WORKCHAIN_ESCROW_ABI,
-      functionName: 'proposeContract',
-      args: [
-        form.freelancer as `0x${string}`,
-        form.title,
-        form.description,
-        paymentTypeIndex,
-        totalAmount,
-        BigInt(deadline),
-        recurringAmount,
-        recurringInterval,
-        recurringCount,
-      ],
-    })
+    if (contractMode === 'Open') {
+      writeContract({
+        address: WORKCHAIN_ESCROW_ADDRESS,
+        abi: WORKCHAIN_ESCROW_ABI,
+        functionName: 'postOpenJob',
+        args: [
+          form.title,
+          form.description,
+          form.category,
+          paymentTypeIndex,
+          totalAmount,
+          BigInt(deadline),
+          recurringAmount,
+          recurringInterval,
+          recurringCount,
+        ],
+      })
+    } else {
+      writeContract({
+        address: WORKCHAIN_ESCROW_ADDRESS,
+        abi: WORKCHAIN_ESCROW_ABI,
+        functionName: 'proposeDirectContract',
+        args: [
+          form.freelancer as `0x${string}`,
+          form.title,
+          form.description,
+          form.category,
+          paymentTypeIndex,
+          totalAmount,
+          BigInt(deadline),
+          recurringAmount,
+          recurringInterval,
+          recurringCount,
+        ],
+      })
+    }
   }
 
   if (isSuccess) {
@@ -100,9 +118,13 @@ export default function PostContract() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl p-10 text-center max-w-md shadow-sm border border-gray-100">
           <div className="text-5xl mb-4">✅</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Contract Proposed!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {contractMode === 'Open' ? 'Job Posted!' : 'Contract Proposed!'}
+          </h2>
           <p className="text-gray-400 text-sm mb-6">
-            Your contract has been proposed. The freelancer needs to sign and activate it.
+            {contractMode === 'Open'
+              ? 'Your job is now live. Freelancers can browse and apply.'
+              : 'Your contract has been proposed. The freelancer needs to sign and activate it.'}
           </p>
           <Link href="/jobs" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
             View Job Board →
@@ -145,8 +167,40 @@ export default function PostContract() {
 
       <div className="max-w-3xl mx-auto px-6 py-10">
         <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Post a Contract</h1>
+          <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Post a Job</h1>
           <p className="text-gray-400">Define the terms, payment structure, and deadlines.</p>
+        </div>
+
+        {/* Contract Mode Toggle */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          {[
+            {
+              mode: 'Open',
+              label: 'Open Job Post',
+              desc: 'Post publicly — freelancers browse and apply. You pick the best fit.',
+              icon: '🌐',
+            },
+            {
+              mode: 'Direct',
+              label: 'Direct Contract',
+              desc: 'Already know who you want? Send a contract directly to their wallet.',
+              icon: '🎯',
+            },
+          ].map((m) => (
+            <button
+              key={m.mode}
+              onClick={() => setContractMode(m.mode as ContractMode)}
+              className={`p-5 rounded-2xl border-2 text-left transition-all ${
+                contractMode === m.mode
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-100 bg-white hover:border-gray-200'
+              }`}
+            >
+              <div className="text-2xl mb-2">{m.icon}</div>
+              <div className="font-display font-bold text-gray-900 text-sm mb-1">{m.label}</div>
+              <div className="text-xs text-gray-400 leading-relaxed">{m.desc}</div>
+            </button>
+          ))}
         </div>
 
         {/* Step indicator */}
@@ -171,18 +225,20 @@ export default function PostContract() {
           {/* Step 1: Basic Details */}
           {step === 1 && (
             <div className="space-y-6">
+              {contractMode === 'Direct' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Freelancer Wallet Address</label>
+                  <input
+                    type="text"
+                    value={form.freelancer}
+                    onChange={(e) => setForm({ ...form, freelancer: e.target.value })}
+                    placeholder="0x..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors font-mono"
+                  />
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Freelancer Wallet Address</label>
-                <input
-                  type="text"
-                  value={form.freelancer}
-                  onChange={(e) => setForm({ ...form, freelancer: e.target.value })}
-                  placeholder="0x..."
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Contract Title</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
                 <input
                   type="text"
                   value={form.title}
@@ -190,6 +246,18 @@ export default function PostContract() {
                   placeholder="e.g. Build a landing page for my startup"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
@@ -212,7 +280,10 @@ export default function PostContract() {
               </div>
               <button
                 onClick={() => setStep(2)}
-                disabled={!form.freelancer || !form.title || !form.description || !form.deadline}
+                disabled={
+                  !form.title || !form.description || !form.deadline ||
+                  (contractMode === 'Direct' && !form.freelancer)
+                }
                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next — Payment Structure →
@@ -248,7 +319,6 @@ export default function PostContract() {
                 </div>
               </div>
 
-              {/* One Time */}
               {paymentType === 'OneTime' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Total Amount (USDC)</label>
@@ -262,7 +332,6 @@ export default function PostContract() {
                 </div>
               )}
 
-              {/* Milestones */}
               {paymentType === 'Milestone' && (
                 <div className="space-y-4">
                   <label className="block text-sm font-medium text-gray-700">Milestones</label>
@@ -310,7 +379,6 @@ export default function PostContract() {
                 </div>
               )}
 
-              {/* Recurring */}
               {paymentType === 'Recurring' && (
                 <div className="space-y-4">
                   <div>
@@ -373,38 +441,50 @@ export default function PostContract() {
           {/* Step 3: Review & Submit */}
           {step === 3 && (
             <div className="space-y-6">
-              <h3 className="font-display font-bold text-gray-900 text-lg">Review Contract</h3>
+              <h3 className="font-display font-bold text-gray-900 text-lg">Review & Submit</h3>
 
-              <div className="space-y-3">
+              <div className="bg-gray-50 rounded-xl p-5 space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-400">Contract Type</span>
+                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                    contractMode === 'Open'
+                      ? 'bg-green-50 text-green-700 border border-green-100'
+                      : 'bg-blue-50 text-blue-700 border border-blue-100'
+                  }`}>
+                    {contractMode === 'Open' ? '🌐 Open Job Post' : '🎯 Direct Contract'}
+                  </span>
+                </div>
+                {contractMode === 'Direct' && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-400">Freelancer</span>
+                    <span className="font-mono text-xs text-gray-900">{form.freelancer.slice(0, 10)}...{form.freelancer.slice(-6)}</span>
+                  </div>
+                )}
                 {[
-                  { label: 'Freelancer', value: `${form.freelancer.slice(0, 10)}...${form.freelancer.slice(-6)}` },
                   { label: 'Title', value: form.title },
+                  { label: 'Category', value: form.category },
                   { label: 'Payment Type', value: paymentType },
                   { label: 'Total Amount', value: `${getTotalAmount()} USDC` },
                   { label: 'Deadline', value: new Date(form.deadline).toLocaleDateString() },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between py-3 border-b border-gray-50">
+                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <span className="text-sm text-gray-400">{item.label}</span>
                     <span className="text-sm font-medium text-gray-900">{item.value}</span>
                   </div>
                 ))}
               </div>
 
-              {paymentType === 'Milestone' && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Milestones</h4>
-                  {milestones.map((m, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 text-sm">
-                      <span className="text-gray-500">{m.description || `Milestone ${i + 1}`}</span>
-                      <span className="font-medium text-gray-900">{m.amount} USDC</span>
-                    </div>
-                  ))}
+              {contractMode === 'Open' && (
+                <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-green-700">
+                  🌐 This job will be visible to all freelancers. They can apply and you choose who to hire.
                 </div>
               )}
 
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
-                By submitting, you propose this contract onchain. The freelancer must sign to activate it and lock the funds.
-              </div>
+              {contractMode === 'Direct' && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
+                  🎯 This contract goes directly to the specified freelancer. They must sign to activate it.
+                </div>
+              )}
 
               {!isConnected && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-600">
@@ -424,7 +504,7 @@ export default function PostContract() {
                   disabled={isPending || isConfirming || !isConnected}
                   className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Submitting...' : 'Propose Contract'}
+                  {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Submitting...' : contractMode === 'Open' ? 'Post Job' : 'Propose Contract'}
                 </button>
               </div>
             </div>
