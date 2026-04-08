@@ -26,6 +26,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(false)
   const [conversation, setConversation] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -51,20 +52,21 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
   const initXmtp = async () => {
     if (!walletClient || !address) return
     setInitializing(true)
+    setError(null)
 
     try {
       const signer = createSigner(walletClient)
-      const xmtp = await Client.create(signer, { env: 'dev' })
+      const xmtp = await Client.create(signer)
       setClient(xmtp)
 
       // Check if peer is on XMTP
       const canMessage = await Client.canMessage(
-        [{ identifierKind: IdentifierKind.Ethereum, identifier: peerAddress.toLowerCase() }],
-        { env: 'dev' }
+        [{ identifierKind: IdentifierKind.Ethereum, identifier: peerAddress.toLowerCase() }]
       )
 
       const peerKey = peerAddress.toLowerCase()
       if (!canMessage.get(peerKey)) {
+        setError('The other party has not enabled XMTP yet.')
         setInitializing(false)
         return
       }
@@ -100,6 +102,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
 
     } catch (err) {
       console.error('XMTP init error:', err)
+      setError('Failed to initialize chat. Please try again.')
     } finally {
       setInitializing(false)
     }
@@ -150,6 +153,11 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
         <p className="text-gray-400 text-sm mb-4">
           Chat directly with the other party. Powered by XMTP — decentralized, end-to-end encrypted.
         </p>
+        {error && (
+          <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-600 mb-4">
+            {error}
+          </div>
+        )}
         <button
           onClick={initXmtp}
           disabled={initializing}
