@@ -100,7 +100,9 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
                 </span>
               )}
             </div>
-            <h3 className="font-display font-bold text-gray-900 text-lg leading-tight">{contract.title}</h3>
+            <Link href={`/contract/${contractId}`}>
+  <h3 className="font-display font-bold text-gray-900 text-lg leading-tight hover:text-blue-600 transition-colors cursor-pointer">{contract.title}</h3>
+</Link>
           </div>
           <div className="text-right ml-4 shrink-0">
             <div className="font-display font-bold text-blue-600 text-xl">{amount.toFixed(2)}</div>
