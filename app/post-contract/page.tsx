@@ -23,6 +23,7 @@ export default function PostContract() {
   const [step, setStep] = useState(1)
   const [contractMode, setContractMode] = useState<ContractMode>('Open')
   const [paymentType, setPaymentType] = useState<PaymentType>('OneTime')
+  const [submitted, setSubmitted] = useState(false)
   const [form, setForm] = useState({
     freelancer: '',
     title: '',
@@ -39,7 +40,12 @@ export default function PostContract() {
   ])
 
   const { writeContract, data: hash, isPending } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+  const { isLoading: isConfirming, isSuccess: receiptSuccess } = useWaitForTransactionReceipt({
+    hash,
+    confirmations: 1,
+  })
+
+  const isSuccess = receiptSuccess || submitted
 
   const addMilestone = () => {
     setMilestones([...milestones, { description: '', amount: '', deadline: '' }])
@@ -91,6 +97,8 @@ export default function PostContract() {
           recurringInterval,
           recurringCount,
         ],
+      }, {
+        onSuccess: () => setSubmitted(true),
       })
     } else {
       writeContract({
@@ -109,6 +117,8 @@ export default function PostContract() {
           recurringInterval,
           recurringCount,
         ],
+      }, {
+        onSuccess: () => setSubmitted(true),
       })
     }
   }
