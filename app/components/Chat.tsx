@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
-import { Client } from '@xmtp/browser-sdk'
+import { Client, type Signer } from '@xmtp/browser-sdk'
 
 interface Message {
   id: string
-  senderAddress: string
+  senderInboxId: string
   content: string
   sent: Date
 }
@@ -36,45 +36,63 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
     scrollToBottom()
   }, [messages])
 
+  const createSigner = (walletClient: any): Signer => ({
+    type: 'EOA',
+    getIdentifier: () => ({
+      identifierKind: 'Ethereum',
+      identifier: walletClient.account.address.toLowerCase(),
+    }),
+    signMessage: async (message: string) => {
+      const signature = await walletClient.signMessage({ message })
+      return signature
+    },
+  })
+
   const initXmtp = async () => {
     if (!walletClient || !address) return
     setInitializing(true)
 
     try {
-      const xmtp = await Client.create(walletClient, { env: 'dev' })
+      const signer = createSigner(walletClient)
+      const xmtp = await Client.create(signer, { env: 'dev' })
       setClient(xmtp)
 
       // Check if peer is on XMTP
-      const canMessage = await Client.canMessage([peerAddress], { env: 'dev' })
-      if (!canMessage.get(peerAddress)) {
+      const canMessage = await Client.canMessage(
+        [{ identifierKind: 'Ethereum', identifier: peerAddress.toLowerCase() }],
+        { env: 'dev' }
+      )
+
+      const peerKey = peerAddress.toLowerCase()
+      if (!canMessage.get(peerKey)) {
         setInitializing(false)
         return
       }
 
       // Create or find conversation
-      const conv = await xmtp.conversations.newDm(peerAddress)
+      const conv = await xmtp.conversations.newDm(peerAddress.toLowerCase())
       setConversation(conv)
 
       // Load existing messages
       const msgs = await conv.messages()
       setMessages(msgs.map((m: any) => ({
         id: m.id,
-        senderAddress: m.senderInboxId,
+        senderInboxId: m.senderInboxId,
         content: typeof m.content === 'string' ? m.content : '',
-        sent: m.sentAt,
+        sent: new Date(m.sentAtNs ? Number(m.sentAtNs) / 1_000_000 : Date.now()),
       })))
 
       // Stream new messages
-      const stream = conv.streamMessages()
       ;(async () => {
-        for await (const msg of await stream) {
+        const stream = await conv.stream()
+        for await (const msg of stream) {
           setMessages((prev) => {
             if (prev.find((m) => m.id === msg.id)) return prev
             return [...prev, {
               id: msg.id,
-              senderAddress: msg.senderInboxId,
+              senderInboxId: msg.senderInboxId,
               content: typeof msg.content === 'string' ? msg.content : '',
-              sent: msg.sentAt,
+              sent: new Date(msg.sentAtNs ? Number(msg.sentAtNs) / 1_000_000 : Date.now()),
             }]
           })
         }
@@ -130,7 +148,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
         <div className="text-3xl mb-3">💬</div>
         <h4 className="font-display font-bold text-gray-900 mb-2">Contract Chat</h4>
         <p className="text-gray-400 text-sm mb-4">
-          Chat directly with the other party about this contract. Powered by XMTP — decentralized, end-to-end encrypted.
+          Chat directly with the other party. Powered by XMTP — decentralized, end-to-end encrypted.
         </p>
         <button
           onClick={initXmtp}
@@ -158,7 +176,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
         </div>
         <div className="ml-auto flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-green-400" />
-          <span className="text-xs text-gray-400">XMTP</span>
+          <span className="text-xs text-gray-400">XMTP · E2E Encrypted</span>
         </div>
       </div>
 
@@ -170,7 +188,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
           </div>
         )}
         {messages.map((msg) => {
-          const isMe = msg.senderAddress === client.inboxId
+          const isMe = msg.senderInboxId === client.inboxId
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
@@ -180,7 +198,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
               }`}>
                 <p>{msg.content}</p>
                 <p className={`text-xs mt-1 ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
-                  {new Date(msg.sent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {msg.sent.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             </div>
