@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { WORKCHAIN_ESCROW_ADDRESS, WORKCHAIN_ESCROW_ABI } from '@/config/contracts'
 import { ConnectWallet } from '../../components/ConnectWallet'
+import { Chat } from '../../components/Chat'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -63,6 +64,8 @@ export default function ContractDetail() {
   const amount = Number(contract.totalAmount) / 1e6
   const deadline = new Date(Number(contract.deadline) * 1000).toLocaleDateString()
   const createdAt = new Date(Number(contract.createdAt) * 1000).toLocaleDateString()
+
+  const peerAddress = isClient ? contract.freelancer : contract.client
 
   const handleAction = (functionName: string, args: unknown[] = []) => {
     writeContract({
@@ -282,6 +285,13 @@ export default function ContractDetail() {
                 ))}
               </div>
             </div>
+
+            {/* Chat */}
+            <Chat
+              peerAddress={peerAddress}
+              contractId={id as string}
+              contractTitle={contract.title}
+            />
           </div>
         )}
 
