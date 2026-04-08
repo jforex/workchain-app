@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
-import { Client, type Signer } from '@xmtp/browser-sdk'
+import { Client, type Signer, IdentifierKind } from '@xmtp/browser-sdk'
 
 interface Message {
   id: string
@@ -39,7 +39,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
   const createSigner = (walletClient: any): Signer => ({
     type: 'EOA',
     getIdentifier: () => ({
-      identifierKind: 'Ethereum',
+      identifierKind: IdentifierKind.Ethereum,
       identifier: walletClient.account.address.toLowerCase(),
     }),
     signMessage: async (message: string) => {
@@ -59,7 +59,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
 
       // Check if peer is on XMTP
       const canMessage = await Client.canMessage(
-        [{ identifierKind: 'Ethereum', identifier: peerAddress.toLowerCase() }],
+        [{ identifierKind: IdentifierKind.Ethereum, identifier: peerAddress.toLowerCase() }],
         { env: 'dev' }
       )
 
