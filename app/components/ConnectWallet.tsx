@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
 import { baseSepolia } from 'wagmi/chains'
 
@@ -9,11 +10,18 @@ export function ConnectWallet() {
   const { disconnect } = useDisconnect()
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
+  const [showDropdown, setShowDropdown] = useState(false)
 
   const isWrongNetwork = isConnected && chainId !== baseSepolia.id
 
-  // Always use just the first available connector
-  const connector = connectors[0]
+  // Get unique connectors by type
+  const injected = connectors.find((c) => c.name === 'Injected' || c.type === 'injected')
+  const baseAcc = connectors.find((c) => c.name === 'Base Account' || c.type === 'baseAccount')
+
+  const walletOptions = [
+    injected && { connector: injected, label: '🦊 MetaMask / Rabby' },
+    baseAcc && { connector: baseAcc, label: '🔵 Base Account' },
+  ].filter(Boolean) as { connector: typeof connectors[0], label: string }[]
 
   if (isConnected) {
     return (
@@ -41,12 +49,31 @@ export function ConnectWallet() {
   }
 
   return (
-    <button
-      onClick={() => connect({ connector })}
-      disabled={isConnecting || !connector}
-      className="px-5 py-2 bg-white text-blue-600 font-medium text-sm rounded-xl hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
-    >
-      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-    </button>
+    <div className="relative">
+      <button
+        onClick={() => setShowDropdown(!showDropdown)}
+        disabled={isConnecting}
+        className="px-5 py-2 bg-white text-blue-600 font-medium text-sm rounded-xl hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
+      >
+        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+      </button>
+
+      {showDropdown && (
+        <div className="absolute right-0 top-12 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 z-50 min-w-[200px]">
+          {walletOptions.map(({ connector, label }) => (
+            <button
+              key={connector.uid}
+              onClick={() => {
+                connect({ connector })
+                setShowDropdown(false)
+              }}
+              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
