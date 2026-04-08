@@ -59,20 +59,21 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
       const xmtp = await Client.create(signer)
       setClient(xmtp)
 
-      // Check if peer is on XMTP
-      const canMessage = await Client.canMessage(
-        [{ identifierKind: IdentifierKind.Ethereum, identifier: peerAddress.toLowerCase() }]
-      )
+      const peerIdentifier = {
+        identifierKind: IdentifierKind.Ethereum,
+        identifier: peerAddress.toLowerCase(),
+      }
 
-      const peerKey = peerAddress.toLowerCase()
-      if (!canMessage.get(peerKey)) {
+      // Check if peer is on XMTP
+      const canMessage = await Client.canMessage([peerIdentifier])
+      if (!canMessage.get(peerAddress.toLowerCase())) {
         setError('The other party has not enabled XMTP yet.')
         setInitializing(false)
         return
       }
 
-      // Create or find conversation
-      const conv = await xmtp.conversations.newDm(peerAddress.toLowerCase())
+      // Create or find DM conversation
+      const conv = await xmtp.conversations.newDmWithIdentifier(peerIdentifier)
       setConversation(conv)
 
       // Load existing messages
