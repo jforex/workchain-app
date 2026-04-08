@@ -12,10 +12,8 @@ export function ConnectWallet() {
 
   const isWrongNetwork = isConnected && chainId !== baseSepolia.id
 
-  // Deduplicate connectors — keep only one of each type
-  const uniqueConnectors = connectors.filter((connector, index, self) =>
-    index === self.findIndex((c) => c.name === connector.name)
-  )
+  // Always use just the first available connector
+  const connector = connectors[0]
 
   if (isConnected) {
     return (
@@ -43,17 +41,12 @@ export function ConnectWallet() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      {uniqueConnectors.map((connector) => (
-        <button
-          key={connector.uid}
-          onClick={() => connect({ connector })}
-          disabled={isConnecting}
-          className="px-5 py-2 bg-white text-blue-600 font-medium text-sm rounded-xl hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
-        >
-          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-        </button>
-      ))}
-    </div>
+    <button
+      onClick={() => connect({ connector })}
+      disabled={isConnecting || !connector}
+      className="px-5 py-2 bg-white text-blue-600 font-medium text-sm rounded-xl hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50"
+    >
+      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+    </button>
   )
 }
