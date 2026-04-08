@@ -33,6 +33,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         address freelancer;
         string title;
         string description;
+        string deliverables;
         string category;
         PaymentType paymentType;
         ContractType contractType;
@@ -84,6 +85,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     function postOpenJob(
         string calldata _title,
         string calldata _description,
+        string calldata _deliverables,
         string calldata _category,
         PaymentType _paymentType,
         uint256 _totalAmount,
@@ -101,6 +103,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         c.freelancer = address(0);
         c.title = _title;
         c.description = _description;
+        c.deliverables = _deliverables;
         c.category = _category;
         c.paymentType = _paymentType;
         c.contractType = ContractType.Open;
@@ -128,6 +131,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         address _freelancer,
         string calldata _title,
         string calldata _description,
+        string calldata _deliverables,
         string calldata _category,
         PaymentType _paymentType,
         uint256 _totalAmount,
@@ -147,6 +151,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         c.freelancer = _freelancer;
         c.title = _title;
         c.description = _description;
+        c.deliverables = _deliverables;
         c.category = _category;
         c.paymentType = _paymentType;
         c.contractType = ContractType.Direct;
@@ -177,7 +182,6 @@ contract WorkChainEscrow is ReentrancyGuard {
         require(c.status == ContractStatus.Proposed, "Job not open");
         require(c.client != msg.sender, "Client cannot apply");
 
-        // Check not already applied
         Application[] storage apps = applications[_contractId];
         for (uint256 i = 0; i < apps.length; i++) {
             require(apps[i].freelancer != msg.sender, "Already applied");
@@ -201,7 +205,6 @@ contract WorkChainEscrow is ReentrancyGuard {
         require(c.contractType == ContractType.Open, "Not an open job");
         require(c.status == ContractStatus.Proposed, "Job not open");
 
-        // Verify freelancer applied
         Application[] storage apps = applications[_contractId];
         bool found = false;
         for (uint256 i = 0; i < apps.length; i++) {

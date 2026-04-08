@@ -1,4 +1,4 @@
-export const WORKCHAIN_ESCROW_ADDRESS = '0xEa04d926132eEA022E676B2A842E7CaD6Ec36aEF' as const
+export const WORKCHAIN_ESCROW_ADDRESS = '0xAFf3CD437258b7Dd43631Ac8F29Ad2F271CC17b8' as const
 
 export const WORKCHAIN_ESCROW_ABI = [
   {
@@ -7,6 +7,7 @@ export const WORKCHAIN_ESCROW_ABI = [
     inputs: [
       { name: '_title', type: 'string' },
       { name: '_description', type: 'string' },
+      { name: '_deliverables', type: 'string' },
       { name: '_category', type: 'string' },
       { name: '_paymentType', type: 'uint8' },
       { name: '_totalAmount', type: 'uint256' },
@@ -25,6 +26,7 @@ export const WORKCHAIN_ESCROW_ABI = [
       { name: '_freelancer', type: 'address' },
       { name: '_title', type: 'string' },
       { name: '_description', type: 'string' },
+      { name: '_deliverables', type: 'string' },
       { name: '_category', type: 'string' },
       { name: '_paymentType', type: 'uint8' },
       { name: '_totalAmount', type: 'uint256' },
@@ -155,6 +157,7 @@ export const WORKCHAIN_ESCROW_ABI = [
           { name: 'freelancer', type: 'address' },
           { name: 'title', type: 'string' },
           { name: 'description', type: 'string' },
+          { name: 'deliverables', type: 'string' },
           { name: 'category', type: 'string' },
           { name: 'paymentType', type: 'uint8' },
           { name: 'contractType', type: 'uint8' },
@@ -229,6 +232,7 @@ export const WORKCHAIN_ESCROW_ABI = [
     stateMutability: 'view',
   },
 ] as const
+
 export const WORKCHAIN_REPUTATION_ADDRESS = '0x979A77f031F7EcE73b81E827a8BB5De7BDca848a' as const
 
 export const WORKCHAIN_REPUTATION_ABI = [
