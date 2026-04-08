@@ -1,7 +1,7 @@
 'use client'
 
 import { useAccount, useReadContract } from 'wagmi'
-import { WORKCHAIN_ESCROW_ADDRESS, WORKCHAIN_ESCROW_ABI } from '@/config/contracts'
+import { WORKCHAIN_ESCROW_ADDRESS, WORKCHAIN_ESCROW_ABI, WORKCHAIN_REPUTATION_ADDRESS, WORKCHAIN_REPUTATION_ABI } from '@/config/contracts'
 import { ConnectWallet } from '../components/ConnectWallet'
 import Link from 'next/link'
 
@@ -65,6 +65,42 @@ function ContractRow({ contractId, address }: { contractId: number, address: str
   )
 }
 
+function CredentialCard({ tokenId }: { tokenId: number }) {
+  const { data: credential } = useReadContract({
+    address: WORKCHAIN_REPUTATION_ADDRESS,
+    abi: WORKCHAIN_REPUTATION_ABI,
+    functionName: 'getCredential',
+    args: [BigInt(tokenId)],
+  })
+
+  if (!credential) return null
+
+  const amount = Number(credential.amount) / 1e6
+  const completedAt = new Date(Number(credential.completedAt) * 1000).toLocaleDateString()
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center text-xl">
+          ⭐
+        </div>
+        <span className="text-xs bg-green-50 text-green-700 border border-green-100 px-2 py-1 rounded-full font-medium">
+          Verified
+        </span>
+      </div>
+      <h4 className="font-display font-bold text-gray-900 text-sm mb-1">{credential.jobTitle}</h4>
+      <div className="text-xs text-gray-400 mb-3">{credential.category}</div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-bold text-blue-600">{amount.toFixed(2)} USDC</span>
+        <span className="text-gray-400">{completedAt}</span>
+      </div>
+      <div className="mt-3 pt-3 border-t border-gray-50 text-xs text-gray-400 font-mono">
+        From: {credential.client.slice(0, 8)}...{credential.client.slice(-4)}
+      </div>
+    </div>
+  )
+}
+
 function StatsCard({ label, value, icon, color }: { label: string, value: number, icon: string, color: string }) {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
@@ -84,6 +120,15 @@ export default function Dashboard() {
     functionName: 'contractCount',
   })
 
+  const { data: credentialIds } = useReadContract({
+    address: WORKCHAIN_REPUTATION_ADDRESS,
+    abi: WORKCHAIN_REPUTATION_ABI,
+    functionName: 'getFreelancerCredentials',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
+  const credCount = credentialIds?.length ?? 0
   const count = contractCount ? Number(contractCount) : 0
   const contractIds = Array.from({ length: count }, (_, i) => i + 1)
 
@@ -149,7 +194,7 @@ export default function Dashboard() {
               <StatsCard label="Total Contracts" value={count} icon="📋" color="text-gray-900" />
               <StatsCard label="Builder Code" value={0} icon="🏗️" color="text-blue-600" />
               <StatsCard label="USDC Earned" value={0} icon="💰" color="text-green-600" />
-              <StatsCard label="Reputation" value={0} icon="⭐" color="text-yellow-500" />
+              <StatsCard label="Reputation NFTs" value={credCount} icon="⭐" color="text-yellow-500" />
             </div>
 
             {/* My Contracts */}
@@ -183,6 +228,20 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {/* My Credentials */}
+            {credCount > 0 && (
+              <div className="mb-8">
+                <h2 className="font-display font-bold text-gray-900 text-xl mb-4">
+                  My Reputation Credentials
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {credentialIds?.map((tokenId) => (
+                    <CredentialCard key={tokenId.toString()} tokenId={Number(tokenId)} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Builder Code Card */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-white">

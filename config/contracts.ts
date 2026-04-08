@@ -229,3 +229,60 @@ export const WORKCHAIN_ESCROW_ABI = [
     stateMutability: 'view',
   },
 ] as const
+export const WORKCHAIN_REPUTATION_ADDRESS = '0x979A77f031F7EcE73b81E827a8BB5De7BDca848a' as const
+
+export const WORKCHAIN_REPUTATION_ABI = [
+  {
+    type: 'function',
+    name: 'getCredential',
+    inputs: [{ name: '_tokenId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'freelancer', type: 'address' },
+          { name: 'client', type: 'address' },
+          { name: 'jobTitle', type: 'string' },
+          { name: 'category', type: 'string' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'completedAt', type: 'uint256' },
+          { name: 'contractId', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getFreelancerCredentials',
+    inputs: [{ name: '_freelancer', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getFreelancerCredentialCount',
+    inputs: [{ name: '_freelancer', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'tokenCount',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'CredentialMinted',
+    inputs: [
+      { name: 'tokenId', type: 'uint256', indexed: true },
+      { name: 'freelancer', type: 'address', indexed: true },
+      { name: 'client', type: 'address', indexed: true },
+      { name: 'contractId', type: 'uint256', indexed: false },
+      { name: 'jobTitle', type: 'string', indexed: false },
+    ],
+  },
+] as const
