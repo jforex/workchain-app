@@ -73,7 +73,7 @@ export function Chat({ peerAddress, contractId, contractTitle }: ChatProps) {
       }
 
       // Create or find DM conversation
-      const conv = await xmtp.conversations.newDmWithIdentifier(peerIdentifier)
+      const conv = await xmtp.conversations.createDmWithIdentifier(peerIdentifier)
       setConversation(conv)
 
       // Load existing messages
