@@ -1,11 +1,11 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
 import { useState } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
 import { WORKCHAIN_ESCROW_ADDRESS, WORKCHAIN_ESCROW_ABI } from '@/config/contracts'
 import { ConnectWallet } from '../components/ConnectWallet'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 const PAYMENT_LABELS = ['One Time', 'Milestone', 'Recurring']
@@ -26,6 +26,7 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
   const [proposedRate, setProposedRate] = useState('')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const { data: contract } = useReadContract({
     address: WORKCHAIN_ESCROW_ADDRESS,
@@ -75,6 +76,7 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
   const handleApply = async () => {
     if (!coverNote) return
     setUploading(true)
+    setUploadError(null)
 
     let finalCoverNote = coverNote
 
@@ -83,7 +85,7 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
         const fileExt = resumeFile.name.split('.').pop()
         const fileName = `${address}-${contractId}-${Date.now()}.${fileExt}`
 
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from('resumes')
           .upload(fileName, resumeFile, { upsert: true })
 
@@ -94,8 +96,9 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
           .getPublicUrl(fileName)
 
         finalCoverNote = `${coverNote}\n\n📎 Resume: ${urlData.publicUrl}`
-      } catch (err) {
+      } catch (err: any) {
         console.error('Upload error:', err)
+        setUploadError('Resume upload failed — submitting without it.')
         finalCoverNote = `${coverNote}\n\n📎 Resume: ${resumeFile.name} (upload failed)`
       }
     }
@@ -113,6 +116,7 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
 
     setUploading(false)
   }
+
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="p-6">
@@ -271,12 +275,19 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
               </button>
             )}
           </div>
+
+          {uploadError && (
+            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-3 text-xs text-yellow-700">
+              {uploadError}
+            </div>
+          )}
+
           <button
             onClick={handleApply}
             disabled={!coverNote || isPending || isConfirming || uploading}
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
           >
-            {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Submitting...' : uploading ? 'Uploading...' : 'Submit Application'}
+            {uploading ? 'Uploading resume...' : isPending ? 'Confirm in Wallet...' : isConfirming ? 'Submitting...' : 'Submit Application'}
           </button>
         </div>
       )}
