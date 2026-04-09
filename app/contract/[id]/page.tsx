@@ -22,12 +22,14 @@ const STATUS_COLORS = [
 
 function CoverNoteWithResume({ coverNote }: { coverNote: string }) {
   const parts = coverNote.split('\n\n📎 Resume: ')
+  const text = parts[0]
+  const resumeUrl = parts.length > 1 ? parts[1] : null
   return (
     <div className="text-sm text-gray-600 mb-3">
-      <p>{parts[0]}</p>
-      {parts[1] && (
+      <p>{text}</p>
+      {resumeUrl && (
         
-          href={parts[1]}
+          href={resumeUrl}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs mt-2 font-medium"
@@ -38,7 +40,6 @@ function CoverNoteWithResume({ coverNote }: { coverNote: string }) {
     </div>
   )
 }
-
 export default function ContractDetail() {
   const { id } = useParams()
   const { address } = useAccount()
