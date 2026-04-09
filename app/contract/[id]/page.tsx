@@ -20,6 +20,25 @@ const STATUS_COLORS = [
   'bg-orange-50 text-orange-700 border-orange-100',
 ]
 
+function CoverNoteWithResume({ coverNote }: { coverNote: string }) {
+  const parts = coverNote.split('\n\n📎 Resume: ')
+  return (
+    <div className="text-sm text-gray-600 mb-3">
+      <p>{parts[0]}</p>
+      {parts[1] && (
+        
+          href={parts[1]}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs mt-2 font-medium"
+        >
+          📎 View Resume
+        </a>
+      )}
+    </div>
+  )
+}
+
 export default function ContractDetail() {
   const { id } = useParams()
   const { address } = useAccount()
@@ -346,7 +365,6 @@ export default function ContractDetail() {
                     <p className="text-sm text-gray-500">
                       Both parties submit their evidence below. Claude will read the contract terms, deliverables, and both sides — then issue a binding onchain verdict.
                     </p>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Client Evidence
@@ -360,7 +378,6 @@ export default function ContractDetail() {
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Freelancer Evidence
@@ -374,13 +391,11 @@ export default function ContractDetail() {
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
                       />
                     </div>
-
                     {disputeError && (
                       <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">
                         {disputeError}
                       </div>
                     )}
-
                     <button
                       onClick={handleResolveDispute}
                       disabled={resolving || !clientEvidence || !freelancerEvidence}
@@ -502,7 +517,7 @@ export default function ContractDetail() {
                         )}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{app.coverNote}</p>
+                    <CoverNoteWithResume coverNote={app.coverNote} />
                     {isClient && !app.selected && contract.status === 0 && (
                       <button
                         onClick={() => handleAction('selectFreelancer', [BigInt(id as string), app.freelancer])}
