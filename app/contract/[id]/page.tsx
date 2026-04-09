@@ -21,19 +21,15 @@ const STATUS_COLORS = [
 ]
 
 function CoverNoteWithResume({ coverNote }: { coverNote: string }) {
-  const parts = coverNote.split('\n\n📎 Resume: ')
-  const text = parts[0]
-  const resumeUrl = parts.length > 1 ? parts[1] : null
+  const separator = '\n\n📎 Resume: '
+  const idx = coverNote.indexOf(separator)
+  const text = idx >= 0 ? coverNote.slice(0, idx) : coverNote
+  const resumeUrl = idx >= 0 ? coverNote.slice(idx + separator.length) : null
   return (
     <div className="text-sm text-gray-600 mb-3">
       <p>{text}</p>
       {resumeUrl && (
-        
-          href={resumeUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs mt-2 font-medium"
-        >
+        <a href={resumeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs mt-2 font-medium">
           📎 View Resume
         </a>
       )}
