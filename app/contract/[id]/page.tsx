@@ -67,7 +67,7 @@ export default function ContractDetail() {
 
   const isClient = address?.toLowerCase() === contract.client.toLowerCase()
   const isFreelancer = address?.toLowerCase() === contract.freelancer.toLowerCase()
-  const isOpen = contract.contractType === 0
+  const isOpen = contract.contractType === 1
   const amount = Number(contract.totalAmount) / 1e6
   const deadline = new Date(Number(contract.deadline) * 1000).toLocaleDateString()
   const createdAt = new Date(Number(contract.createdAt) * 1000).toLocaleDateString()
