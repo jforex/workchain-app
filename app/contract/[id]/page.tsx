@@ -36,13 +36,13 @@ function CoverNoteWithResume({ coverNote }: { coverNote: string }) {
     </div>
   )
 }
+
 export default function ContractDetail() {
   const { id } = useParams()
   const { address } = useAccount()
   const [submitted, setSubmitted] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'milestones' | 'applications'>('overview')
 
-  // Dispute state
   const [clientEvidence, setClientEvidence] = useState('')
   const [freelancerEvidence, setFreelancerEvidence] = useState('')
   const [resolving, setResolving] = useState(false)
@@ -87,7 +87,6 @@ export default function ContractDetail() {
   const amount = Number(contract.totalAmount) / 1e6
   const deadline = new Date(Number(contract.deadline) * 1000).toLocaleDateString()
   const createdAt = new Date(Number(contract.createdAt) * 1000).toLocaleDateString()
-
   const peerAddress = isClient ? contract.freelancer : contract.client
 
   const handleAction = (functionName: string, args: unknown[] = []) => {
@@ -134,12 +133,10 @@ export default function ContractDetail() {
       })
 
       const data = await res.json()
-
       if (!data.success) {
         setDisputeError(data.error || 'Resolution failed. Please try again.')
         return
       }
-
       setVerdict(data)
       refetch()
     } catch (err: any) {
@@ -165,7 +162,6 @@ export default function ContractDetail() {
         }
       `}</style>
 
-      {/* Header */}
       <header className="border-b border-gray-100 bg-white px-6 py-4 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -181,7 +177,6 @@ export default function ContractDetail() {
 
       <div className="max-w-4xl mx-auto px-6 py-10">
 
-        {/* Contract header */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
@@ -218,30 +213,33 @@ export default function ContractDetail() {
             </div>
           </div>
 
-          {/* Contract info grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-50">
             {[
-              { label: 'Client', value: `${contract.client.slice(0, 6)}...${contract.client.slice(-4)}` },
-              { label: 'Freelancer', value: contract.freelancer === '0x0000000000000000000000000000000000000000' ? 'Not assigned' : `${contract.freelancer.slice(0, 6)}...${contract.freelancer.slice(-4)}` },
-              { label: 'Deadline', value: deadline },
-              { label: 'Posted', value: createdAt },
+              { label: 'Client', value: contract.client, display: `${contract.client.slice(0, 6)}...${contract.client.slice(-4)}`, link: `/profile/${contract.client}` },
+              { label: 'Freelancer', value: contract.freelancer, display: contract.freelancer === '0x0000000000000000000000000000000000000000' ? 'Not assigned' : `${contract.freelancer.slice(0, 6)}...${contract.freelancer.slice(-4)}`, link: contract.freelancer !== '0x0000000000000000000000000000000000000000' ? `/profile/${contract.freelancer}` : null },
+              { label: 'Deadline', value: deadline, display: deadline, link: null },
+              { label: 'Posted', value: createdAt, display: createdAt, link: null },
             ].map((item) => (
               <div key={item.label}>
                 <div className="text-xs text-gray-400 mb-1">{item.label}</div>
-                <div className="text-sm font-medium text-gray-900 font-mono">{item.value}</div>
+                {item.link ? (
+                  <Link href={item.link} className="text-sm font-medium text-blue-600 hover:text-blue-700 font-mono transition-colors">
+                    {item.display}
+                  </Link>
+                ) : (
+                  <div className="text-sm font-medium text-gray-900 font-mono">{item.display}</div>
+                )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Success message */}
         {submitted && (
           <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-green-700 mb-6 text-center font-medium">
             Transaction submitted successfully!
           </div>
         )}
 
-        {/* Tabs */}
         <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 mb-6 w-fit">
           {[
             { key: 'overview', label: 'Overview' },
@@ -260,27 +258,21 @@ export default function ContractDetail() {
           ))}
         </div>
 
-        {/* Overview tab */}
         {activeTab === 'overview' && (
           <div className="space-y-4">
-
-            {/* Client actions */}
             {isClient && contract.status === 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h3 className="font-display font-bold text-gray-900 mb-4">Client Actions</h3>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleAction('cancelContract', [BigInt(id as string)])}
-                    disabled={isPending || isConfirming}
-                    className="px-6 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    Cancel Contract
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleAction('cancelContract', [BigInt(id as string)])}
+                  disabled={isPending || isConfirming}
+                  className="px-6 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Cancel Contract
+                </button>
               </div>
             )}
 
-            {/* Freelancer actions — Direct contract */}
             {isFreelancer && contract.status === 0 && !isOpen && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h3 className="font-display font-bold text-gray-900 mb-2">Accept Contract</h3>
@@ -297,7 +289,6 @@ export default function ContractDetail() {
               </div>
             )}
 
-            {/* Active contract actions */}
             {contract.status === 1 && (isClient || isFreelancer) && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h3 className="font-display font-bold text-gray-900 mb-4">Contract Actions</h3>
@@ -332,7 +323,6 @@ export default function ContractDetail() {
               </div>
             )}
 
-            {/* AI Dispute Resolver */}
             {contract.status === 3 && (
               <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6">
                 <div className="flex items-center gap-3 mb-2">
@@ -342,13 +332,10 @@ export default function ContractDetail() {
                     <p className="text-xs text-gray-400">Powered by Claude — neutral, onchain verdict</p>
                   </div>
                 </div>
-
                 {verdict ? (
                   <div className="mt-4 p-5 bg-gray-50 rounded-xl space-y-3">
                     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-                      verdict.winner === 'freelancer'
-                        ? 'bg-green-50 text-green-700 border border-green-100'
-                        : 'bg-blue-50 text-blue-700 border border-blue-100'
+                      verdict.winner === 'freelancer' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-blue-50 text-blue-700 border border-blue-100'
                     }`}>
                       {verdict.winner === 'freelancer' ? '💼 Freelancer wins' : '👔 Client wins'}
                     </div>
@@ -364,26 +351,24 @@ export default function ContractDetail() {
                     </p>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Client Evidence
-                        {isClient && <span className="text-blue-600 ml-1 text-xs">(you)</span>}
+                        Client Evidence {isClient && <span className="text-blue-600 ml-1 text-xs">(you)</span>}
                       </label>
                       <textarea
                         value={clientEvidence}
                         onChange={(e) => setClientEvidence(e.target.value)}
-                        placeholder="Describe why the work was not delivered as agreed. Include specific details about what was missing or incorrect..."
+                        placeholder="Describe why the work was not delivered as agreed..."
                         rows={4}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Freelancer Evidence
-                        {isFreelancer && <span className="text-blue-600 ml-1 text-xs">(you)</span>}
+                        Freelancer Evidence {isFreelancer && <span className="text-blue-600 ml-1 text-xs">(you)</span>}
                       </label>
                       <textarea
                         value={freelancerEvidence}
                         onChange={(e) => setFreelancerEvidence(e.target.value)}
-                        placeholder="Describe what was delivered and how it meets the agreed deliverables. Include links, screenshots, or any proof of completion..."
+                        placeholder="Describe what was delivered and how it meets the agreed deliverables..."
                         rows={4}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
                       />
@@ -405,7 +390,6 @@ export default function ContractDetail() {
               </div>
             )}
 
-            {/* Contract timeline */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h3 className="font-display font-bold text-gray-900 mb-4">Contract Timeline</h3>
               <div className="space-y-3">
@@ -430,16 +414,10 @@ export default function ContractDetail() {
               </div>
             </div>
 
-            {/* Chat */}
-            <Chat
-              peerAddress={peerAddress}
-              contractId={id as string}
-              contractTitle={contract.title}
-            />
+            <Chat peerAddress={peerAddress} contractId={id as string} contractTitle={contract.title} />
           </div>
         )}
 
-        {/* Milestones tab */}
         {activeTab === 'milestones' && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-display font-bold text-gray-900 mb-4">Milestones</h3>
@@ -479,7 +457,6 @@ export default function ContractDetail() {
           </div>
         )}
 
-        {/* Applications tab */}
         {activeTab === 'applications' && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-display font-bold text-gray-900 mb-4">Applications</h3>
@@ -494,9 +471,9 @@ export default function ContractDetail() {
                   <div key={i} className={`p-5 rounded-xl border ${app.selected ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <div className="font-mono text-sm text-gray-900 font-medium">
+                        <Link href={`/profile/${app.freelancer}`} className="font-mono text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
                           {app.freelancer.slice(0, 10)}...{app.freelancer.slice(-6)}
-                        </div>
+                        </Link>
                         <div className="text-xs text-gray-400 mt-1">
                           Applied {new Date(Number(app.appliedAt) * 1000).toLocaleDateString()}
                         </div>
