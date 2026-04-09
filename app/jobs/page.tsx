@@ -46,8 +46,8 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
 
   const amount = Number(contract.totalAmount) / 1e6
   const deadline = new Date(Number(contract.deadline) * 1000).toLocaleDateString()
-  const isOpen = contract.contractType === 0
-  const isDirectFreelancer = address?.toLowerCase() === contract.freelancer.toLowerCase()
+  const isOpen = contract.contractType === 1
+  const isDirectFreelancer = !isOpen && address?.toLowerCase() === contract.freelancer.toLowerCase()
   const isClient = address?.toLowerCase() === contract.client.toLowerCase()
 
   const handleAccept = () => {
