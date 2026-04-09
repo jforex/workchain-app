@@ -1,5 +1,6 @@
 'use client'
 
+import { supabase } from '@/lib/supabase'
 import { useState } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -77,9 +78,26 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
 
     let finalCoverNote = coverNote
 
-    // If resume uploaded, add it as a note (Pinata upload can be wired here later)
     if (resumeFile) {
-      finalCoverNote = `${coverNote}\n\n📎 Resume: ${resumeFile.name} (${(resumeFile.size / 1024).toFixed(0)}KB)`
+      try {
+        const fileExt = resumeFile.name.split('.').pop()
+        const fileName = `${address}-${contractId}-${Date.now()}.${fileExt}`
+
+        const { data, error } = await supabase.storage
+          .from('resumes')
+          .upload(fileName, resumeFile, { upsert: true })
+
+        if (error) throw error
+
+        const { data: urlData } = supabase.storage
+          .from('resumes')
+          .getPublicUrl(fileName)
+
+        finalCoverNote = `${coverNote}\n\n📎 Resume: ${urlData.publicUrl}`
+      } catch (err) {
+        console.error('Upload error:', err)
+        finalCoverNote = `${coverNote}\n\n📎 Resume: ${resumeFile.name} (upload failed)`
+      }
     }
 
     writeContract({
@@ -95,7 +113,6 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
 
     setUploading(false)
   }
-
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="p-6">
