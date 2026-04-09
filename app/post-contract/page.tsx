@@ -28,6 +28,7 @@ export default function PostContract() {
     freelancer: '',
     title: '',
     description: '',
+    deliverables: '',
     category: 'Web Dev',
     totalAmount: '',
     deadline: '',
@@ -76,7 +77,7 @@ export default function PostContract() {
 
     const totalAmount = parseUnits(getTotalAmount() || '0', 6)
     const deadline = Math.floor(new Date(form.deadline).getTime() / 1000)
-    const paymentTypeIndex = paymentType === 'OneTime' ? 0 : paymentType === 'Milestone' ? 1 : 2
+    const paymentTypeIndex = (paymentType === 'OneTime' ? 0 : paymentType === 'Milestone' ? 1 : 2) as 0 | 1 | 2
     const recurringAmount = paymentType === 'Recurring' ? parseUnits(form.recurringAmount, 6) : BigInt(0)
     const recurringInterval = paymentType === 'Recurring' ? BigInt(parseInt(form.recurringInterval) * 24 * 60 * 60) : BigInt(0)
     const recurringCount = paymentType === 'Recurring' ? BigInt(parseInt(form.recurringCount)) : BigInt(0)
@@ -89,6 +90,7 @@ export default function PostContract() {
         args: [
           form.title,
           form.description,
+          form.deliverables,
           form.category,
           paymentTypeIndex,
           totalAmount,
@@ -109,6 +111,7 @@ export default function PostContract() {
           form.freelancer as `0x${string}`,
           form.title,
           form.description,
+          form.deliverables,
           form.category,
           paymentTypeIndex,
           totalAmount,
@@ -137,7 +140,7 @@ export default function PostContract() {
               : 'Your contract has been proposed. The freelancer needs to sign and activate it.'}
           </p>
           <Link href="/jobs" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-            View Job Board →
+            View Job Board
           </Link>
         </div>
       </div>
@@ -280,6 +283,19 @@ export default function PostContract() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Deliverables
+                  <span className="text-gray-400 font-normal ml-1 text-xs">(used for dispute resolution)</span>
+                </label>
+                <textarea
+                  value={form.deliverables}
+                  onChange={(e) => setForm({ ...form, deliverables: e.target.value })}
+                  placeholder={`List exactly what must be delivered, e.g:\n- Responsive landing page with 3 sections\n- Mobile version\n- 2 rounds of revisions`}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 transition-colors resize-none"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Overall Deadline</label>
                 <input
                   type="datetime-local"
@@ -296,7 +312,7 @@ export default function PostContract() {
                 }
                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next — Payment Structure →
+                Next — Payment Structure
               </button>
             </div>
           )}
@@ -436,13 +452,13 @@ export default function PostContract() {
                   onClick={() => setStep(1)}
                   className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors"
                 >
-                  ← Back
+                  Back
                 </button>
                 <button
                   onClick={() => setStep(3)}
                   className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-colors"
                 >
-                  Next — Review →
+                  Next — Review
                 </button>
               </div>
             </div>
@@ -482,6 +498,12 @@ export default function PostContract() {
                     <span className="text-sm font-medium text-gray-900">{item.value}</span>
                   </div>
                 ))}
+                {form.deliverables && (
+                  <div className="py-2">
+                    <span className="text-sm text-gray-400 block mb-1">Deliverables</span>
+                    <span className="text-sm text-gray-900 whitespace-pre-line">{form.deliverables}</span>
+                  </div>
+                )}
               </div>
 
               {contractMode === 'Open' && (
@@ -507,7 +529,7 @@ export default function PostContract() {
                   onClick={() => setStep(2)}
                   className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors"
                 >
-                  ← Back
+                  Back
                 </button>
                 <button
                   onClick={handleSubmit}
