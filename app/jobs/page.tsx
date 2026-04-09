@@ -23,6 +23,8 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
   const [showApplyForm, setShowApplyForm] = useState(false)
   const [coverNote, setCoverNote] = useState('')
   const [proposedRate, setProposedRate] = useState('')
+  const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   const { data: contract } = useReadContract({
     address: WORKCHAIN_ESCROW_ADDRESS,
@@ -38,6 +40,13 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
     args: [BigInt(contractId)],
   })
 
+  const { data: applications } = useReadContract({
+    address: WORKCHAIN_ESCROW_ADDRESS,
+    abi: WORKCHAIN_ESCROW_ABI,
+    functionName: 'getApplications',
+    args: [BigInt(contractId)],
+  })
+
   const { writeContract, data: hash, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
@@ -49,6 +58,9 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
   const isOpen = contract.contractType === 1
   const isDirectFreelancer = !isOpen && address?.toLowerCase() === contract.freelancer.toLowerCase()
   const isClient = address?.toLowerCase() === contract.client.toLowerCase()
+  const hasApplied = applications?.some(
+    (app) => app.freelancer.toLowerCase() === address?.toLowerCase()
+  ) ?? false
 
   const handleAccept = () => {
     writeContract({
@@ -59,18 +71,29 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
     })
   }
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!coverNote) return
+    setUploading(true)
+
+    let finalCoverNote = coverNote
+
+    // If resume uploaded, add it as a note (Pinata upload can be wired here later)
+    if (resumeFile) {
+      finalCoverNote = `${coverNote}\n\n📎 Resume: ${resumeFile.name} (${(resumeFile.size / 1024).toFixed(0)}KB)`
+    }
+
     writeContract({
       address: WORKCHAIN_ESCROW_ADDRESS,
       abi: WORKCHAIN_ESCROW_ABI,
       functionName: 'applyForJob',
       args: [
         BigInt(contractId),
-        coverNote,
+        finalCoverNote,
         proposedRate ? parseUnits(proposedRate, 6) : BigInt(0),
       ],
     })
+
+    setUploading(false)
   }
 
   return (
@@ -99,10 +122,17 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
                   {contract.category}
                 </span>
               )}
+              {hasApplied && (
+                <span className="text-xs px-2 py-1 rounded-full border border-blue-100 bg-blue-50 text-blue-600 font-medium">
+                  ✓ Applied
+                </span>
+              )}
             </div>
             <Link href={`/contract/${contractId}`}>
-  <h3 className="font-display font-bold text-gray-900 text-lg leading-tight hover:text-blue-600 transition-colors cursor-pointer">{contract.title}</h3>
-</Link>
+              <h3 className="font-display font-bold text-gray-900 text-lg leading-tight hover:text-blue-600 transition-colors cursor-pointer">
+                {contract.title}
+              </h3>
+            </Link>
           </div>
           <div className="text-right ml-4 shrink-0">
             <div className="font-display font-bold text-blue-600 text-xl">{amount.toFixed(2)}</div>
@@ -149,12 +179,18 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
             {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Activating...' : 'Accept Contract'}
           </button>
         ) : isOpen && address ? (
-          <button
-            onClick={() => setShowApplyForm(!showApplyForm)}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
-          >
-            {showApplyForm ? 'Cancel' : 'Apply for this Job'}
-          </button>
+          hasApplied ? (
+            <div className="bg-blue-50 text-blue-700 text-xs text-center py-2.5 rounded-xl border border-blue-100 font-medium">
+              ✓ You already applied for this job
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowApplyForm(!showApplyForm)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              {showApplyForm ? 'Cancel' : 'Apply for this Job'}
+            </button>
+          )
         ) : !address ? (
           <div className="text-xs text-gray-400 text-center py-2">
             Connect wallet to apply
@@ -163,7 +199,7 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
       </div>
 
       {/* Apply form */}
-      {showApplyForm && !isSuccess && (
+      {showApplyForm && !isSuccess && !hasApplied && (
         <div className="border-t border-gray-100 p-6 bg-gray-50 space-y-4">
           <h4 className="text-sm font-medium text-gray-700">Your Application</h4>
           <div>
@@ -186,12 +222,44 @@ function JobCard({ contractId, address }: { contractId: number, address?: string
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-blue-400 bg-white"
             />
           </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Resume / Portfolio — optional</label>
+            <div
+              onClick={() => document.getElementById(`resume-${contractId}`)?.click()}
+              className={`w-full px-3 py-3 border-2 border-dashed rounded-xl text-sm text-center cursor-pointer transition-colors ${
+                resumeFile
+                  ? 'border-blue-300 bg-blue-50 text-blue-600'
+                  : 'border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500'
+              }`}
+            >
+              {resumeFile ? (
+                <span>📎 {resumeFile.name} ({(resumeFile.size / 1024).toFixed(0)}KB)</span>
+              ) : (
+                <span>Click to upload resume or portfolio (PDF, DOC)</span>
+              )}
+            </div>
+            <input
+              id={`resume-${contractId}`}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+            {resumeFile && (
+              <button
+                onClick={() => setResumeFile(null)}
+                className="text-xs text-red-400 hover:text-red-600 mt-1"
+              >
+                Remove file
+              </button>
+            )}
+          </div>
           <button
             onClick={handleApply}
-            disabled={!coverNote || isPending || isConfirming}
+            disabled={!coverNote || isPending || isConfirming || uploading}
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
           >
-            {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Submitting...' : 'Submit Application'}
+            {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Submitting...' : uploading ? 'Uploading...' : 'Submit Application'}
           </button>
         </div>
       )}
@@ -247,6 +315,9 @@ export default function JobsPage() {
             <span className="font-display font-bold text-gray-900">WorkChain</span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+              Dashboard
+            </Link>
             <Link
               href="/post-contract"
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
@@ -259,7 +330,6 @@ export default function JobsPage() {
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-10">
-        {/* Page header */}
         <div className="mb-6">
           <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Job Board</h1>
           <p className="text-gray-400">Browse open contracts — payments locked in escrow.</p>
