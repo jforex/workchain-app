@@ -26,6 +26,13 @@ export default function ContractDetail() {
   const [submitted, setSubmitted] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'milestones' | 'applications'>('overview')
 
+  // Dispute state
+  const [clientEvidence, setClientEvidence] = useState('')
+  const [freelancerEvidence, setFreelancerEvidence] = useState('')
+  const [resolving, setResolving] = useState(false)
+  const [verdict, setVerdict] = useState<{ winner: string, reasoning: string, txHash: string } | null>(null)
+  const [disputeError, setDisputeError] = useState<string | null>(null)
+
   const { data: contract, refetch } = useReadContract({
     address: WORKCHAIN_ESCROW_ADDRESS,
     abi: WORKCHAIN_ESCROW_ABI,
@@ -84,6 +91,48 @@ export default function ContractDetail() {
     })
   }
 
+  const handleResolveDispute = async () => {
+    if (!clientEvidence || !freelancerEvidence) {
+      setDisputeError('Both parties must submit evidence before resolving.')
+      return
+    }
+    setResolving(true)
+    setDisputeError(null)
+    setVerdict(null)
+
+    try {
+      const res = await fetch('/api/resolve-dispute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractId: id,
+          title: contract.title,
+          description: contract.description,
+          deliverables: contract.deliverables,
+          totalAmount: amount,
+          clientEvidence,
+          freelancerEvidence,
+          clientAddress: contract.client,
+          freelancerAddress: contract.freelancer,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!data.success) {
+        setDisputeError(data.error || 'Resolution failed. Please try again.')
+        return
+      }
+
+      setVerdict(data)
+      refetch()
+    } catch (err: any) {
+      setDisputeError(err.message || 'Something went wrong.')
+    } finally {
+      setResolving(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#f8faff]">
       <style>{`
@@ -105,7 +154,7 @@ export default function ContractDetail() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/jobs" className="text-gray-400 hover:text-gray-600 text-sm transition-colors">
-              ← Job Board
+              Job Board
             </Link>
             <span className="text-gray-200">/</span>
             <span className="text-sm text-gray-600 font-medium">Contract #{id}</span>
@@ -140,6 +189,12 @@ export default function ContractDetail() {
               </div>
               <h1 className="font-display text-2xl font-bold text-gray-900 mb-2">{contract.title}</h1>
               <p className="text-gray-400 text-sm leading-relaxed">{contract.description}</p>
+              {contract.deliverables && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="text-xs font-medium text-gray-500 mb-1">Agreed Deliverables</div>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{contract.deliverables}</p>
+                </div>
+              )}
             </div>
             <div className="text-right ml-8 shrink-0">
               <div className="font-display font-bold text-blue-600 text-3xl">{amount.toFixed(2)}</div>
@@ -166,7 +221,7 @@ export default function ContractDetail() {
         {/* Success message */}
         {submitted && (
           <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-green-700 mb-6 text-center font-medium">
-            ✅ Transaction submitted successfully!
+            Transaction submitted successfully!
           </div>
         )}
 
@@ -237,7 +292,7 @@ export default function ContractDetail() {
                       disabled={isPending || isConfirming}
                       className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
                     >
-                      ✅ Release Payment
+                      Release Payment
                     </button>
                   )}
                   <button
@@ -245,7 +300,7 @@ export default function ContractDetail() {
                     disabled={isPending || isConfirming}
                     className="px-6 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
                   >
-                    🚨 Raise Dispute
+                    Raise Dispute
                   </button>
                   <button
                     onClick={() => {
@@ -255,9 +310,86 @@ export default function ContractDetail() {
                     disabled={isPending || isConfirming}
                     className="px-6 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
                   >
-                    ⏳ Request Extension
+                    Request Extension
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* AI Dispute Resolver */}
+            {contract.status === 3 && (
+              <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center text-lg">🤖</div>
+                  <div>
+                    <h3 className="font-display font-bold text-gray-900">AI Dispute Resolution</h3>
+                    <p className="text-xs text-gray-400">Powered by Claude — neutral, onchain verdict</p>
+                  </div>
+                </div>
+
+                {verdict ? (
+                  <div className="mt-4 p-5 bg-gray-50 rounded-xl space-y-3">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+                      verdict.winner === 'freelancer'
+                        ? 'bg-green-50 text-green-700 border border-green-100'
+                        : 'bg-blue-50 text-blue-700 border border-blue-100'
+                    }`}>
+                      {verdict.winner === 'freelancer' ? '💼 Freelancer wins' : '👔 Client wins'}
+                    </div>
+                    <p className="text-sm text-gray-600">{verdict.reasoning}</p>
+                    <div className="text-xs text-gray-400 font-mono">
+                      Tx: {verdict.txHash.slice(0, 16)}...{verdict.txHash.slice(-8)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    <p className="text-sm text-gray-500">
+                      Both parties submit their evidence below. Claude will read the contract terms, deliverables, and both sides — then issue a binding onchain verdict.
+                    </p>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Client Evidence
+                        {isClient && <span className="text-blue-600 ml-1 text-xs">(you)</span>}
+                      </label>
+                      <textarea
+                        value={clientEvidence}
+                        onChange={(e) => setClientEvidence(e.target.value)}
+                        placeholder="Describe why the work was not delivered as agreed. Include specific details about what was missing or incorrect..."
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Freelancer Evidence
+                        {isFreelancer && <span className="text-blue-600 ml-1 text-xs">(you)</span>}
+                      </label>
+                      <textarea
+                        value={freelancerEvidence}
+                        onChange={(e) => setFreelancerEvidence(e.target.value)}
+                        placeholder="Describe what was delivered and how it meets the agreed deliverables. Include links, screenshots, or any proof of completion..."
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors resize-none"
+                      />
+                    </div>
+
+                    {disputeError && (
+                      <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-600">
+                        {disputeError}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleResolveDispute}
+                      disabled={resolving || !clientEvidence || !freelancerEvidence}
+                      className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      {resolving ? 'Claude is reviewing the evidence...' : 'Submit to AI Arbitrator'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -365,7 +497,7 @@ export default function ContractDetail() {
                         )}
                         {app.selected && (
                           <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
-                            ✓ Selected
+                            Selected
                           </span>
                         )}
                       </div>
