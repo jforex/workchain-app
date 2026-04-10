@@ -3,8 +3,10 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract WorkChainEscrow is ReentrancyGuard {
+contract WorkChainEscrow is ReentrancyGuard, Pausable, Ownable {
 
     // ─── Enums ───────────────────────────────────────────────
     enum ContractStatus { Proposed, Active, Completed, Disputed, Resolved, Cancelled, Expired }
@@ -43,13 +45,11 @@ contract WorkChainEscrow is ReentrancyGuard {
         uint256 deadline;
         bool clientSigned;
         bool freelancerSigned;
-        // Recurring fields
         uint256 recurringAmount;
         uint256 recurringInterval;
         uint256 lastPaymentAt;
         uint256 recurringCount;
         uint256 recurringPaid;
-        // Extension
         uint256 extensionRequestedBy;
         uint256 proposedDeadline;
     }
@@ -58,6 +58,12 @@ contract WorkChainEscrow is ReentrancyGuard {
     IERC20 public immutable USDC;
     uint256 public contractCount;
     string public constant BUILDER_CODE = "bc_v1ampve4";
+
+    // Security: oracle address for dispute resolution
+    address public oracle;
+
+    // Security: maximum amount per contract (10,000 USDC during beta)
+    uint256 public maxContractAmount = 10_000 * 1e6;
 
     mapping(uint256 => WorkContract) public contracts;
     mapping(uint256 => Milestone[]) public milestones;
@@ -76,12 +82,43 @@ contract WorkChainEscrow is ReentrancyGuard {
     event ContractResolved(uint256 indexed contractId, address winner, uint256 amount);
     event ContractCancelled(uint256 indexed contractId);
     event ContractExpired(uint256 indexed contractId);
+    event OracleUpdated(address indexed oldOracle, address indexed newOracle);
+    event MaxAmountUpdated(uint256 oldMax, uint256 newMax);
 
-    constructor(address _usdc) {
+    // ─── Constructor ──────────────────────────────────────────
+    constructor(address _usdc, address _oracle) Ownable(msg.sender) {
         USDC = IERC20(_usdc);
+        oracle = _oracle;
     }
 
-    // ─── 1. Post an open job (no freelancer specified) ────────
+    // ─── Modifiers ────────────────────────────────────────────
+    modifier onlyOracle() {
+        require(msg.sender == oracle, "Only oracle can resolve disputes");
+        _;
+    }
+
+    // ─── Admin functions ──────────────────────────────────────
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    function setOracle(address _newOracle) external onlyOwner {
+        require(_newOracle != address(0), "Invalid oracle address");
+        emit OracleUpdated(oracle, _newOracle);
+        oracle = _newOracle;
+    }
+
+    function setMaxContractAmount(uint256 _newMax) external onlyOwner {
+        require(_newMax > 0, "Max must be > 0");
+        emit MaxAmountUpdated(maxContractAmount, _newMax);
+        maxContractAmount = _newMax;
+    }
+
+    // ─── 1. Post an open job ──────────────────────────────────
     function postOpenJob(
         string calldata _title,
         string calldata _description,
@@ -93,8 +130,9 @@ contract WorkChainEscrow is ReentrancyGuard {
         uint256 _recurringAmount,
         uint256 _recurringInterval,
         uint256 _recurringCount
-    ) external returns (uint256) {
+    ) external whenNotPaused returns (uint256) {
         require(_totalAmount > 0, "Amount must be > 0");
+        require(_totalAmount <= maxContractAmount, "Exceeds maximum contract amount");
         require(_deadline > block.timestamp, "Deadline must be in future");
 
         uint256 contractId = ++contractCount;
@@ -126,7 +164,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         return contractId;
     }
 
-    // ─── 2. Propose a direct contract (freelancer specified) ──
+    // ─── 2. Propose a direct contract ────────────────────────
     function proposeDirectContract(
         address _freelancer,
         string calldata _title,
@@ -139,10 +177,11 @@ contract WorkChainEscrow is ReentrancyGuard {
         uint256 _recurringAmount,
         uint256 _recurringInterval,
         uint256 _recurringCount
-    ) external returns (uint256) {
+    ) external whenNotPaused returns (uint256) {
         require(_freelancer != address(0), "Invalid freelancer");
         require(_freelancer != msg.sender, "Cannot hire yourself");
         require(_totalAmount > 0, "Amount must be > 0");
+        require(_totalAmount <= maxContractAmount, "Exceeds maximum contract amount");
         require(_deadline > block.timestamp, "Deadline must be in future");
 
         uint256 contractId = ++contractCount;
@@ -176,7 +215,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         uint256 _contractId,
         string calldata _coverNote,
         uint256 _proposedRate
-    ) external {
+    ) external whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(c.contractType == ContractType.Open, "Not an open job");
         require(c.status == ContractStatus.Proposed, "Job not open");
@@ -198,8 +237,8 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit ApplicationSubmitted(_contractId, msg.sender);
     }
 
-    // ─── 4. Client selects a freelancer from applications ─────
-    function selectFreelancer(uint256 _contractId, address _freelancer) external {
+    // ─── 4. Client selects a freelancer ──────────────────────
+    function selectFreelancer(uint256 _contractId, address _freelancer) external whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.client, "Only client");
         require(c.contractType == ContractType.Open, "Not an open job");
@@ -220,8 +259,8 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit FreelancerSelected(_contractId, _freelancer);
     }
 
-    // ─── 5. Freelancer signs and activates ────────────────────
-    function signAndActivate(uint256 _contractId) external nonReentrant {
+    // ─── 5. Freelancer signs and activates ───────────────────
+    function signAndActivate(uint256 _contractId) external nonReentrant whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.freelancer, "Only assigned freelancer");
         require(c.status == ContractStatus.Proposed, "Not proposed");
@@ -243,7 +282,7 @@ contract WorkChainEscrow is ReentrancyGuard {
         string[] calldata _descriptions,
         uint256[] calldata _amounts,
         uint256[] calldata _deadlines
-    ) external {
+    ) external whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.client, "Only client");
         require(c.status == ContractStatus.Proposed, "Not proposed");
@@ -264,7 +303,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     }
 
     // ─── 7. Release milestone ─────────────────────────────────
-    function releaseMilestone(uint256 _contractId, uint256 _milestoneIndex) external nonReentrant {
+    function releaseMilestone(uint256 _contractId, uint256 _milestoneIndex) external nonReentrant whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.client, "Only client");
         require(c.status == ContractStatus.Active, "Not active");
@@ -281,7 +320,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     }
 
     // ─── 8. Release recurring payment ─────────────────────────
-    function releaseRecurringPayment(uint256 _contractId) external nonReentrant {
+    function releaseRecurringPayment(uint256 _contractId) external nonReentrant whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Active, "Not active");
         require(c.paymentType == PaymentType.Recurring, "Not recurring");
@@ -300,7 +339,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     }
 
     // ─── 9. Request extension ─────────────────────────────────
-    function requestExtension(uint256 _contractId, uint256 _newDeadline) external {
+    function requestExtension(uint256 _contractId, uint256 _newDeadline) external whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Active, "Not active");
         require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
@@ -314,7 +353,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     }
 
     // ─── 10. Approve extension ────────────────────────────────
-    function approveExtension(uint256 _contractId) external {
+    function approveExtension(uint256 _contractId) external whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Active, "Not active");
         require(c.extensionRequestedBy != 0, "No extension pending");
@@ -329,7 +368,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     }
 
     // ─── 11. Mark expired ─────────────────────────────────────
-    function markExpired(uint256 _contractId) external {
+    function markExpired(uint256 _contractId) external nonReentrant whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Active, "Not active");
         require(block.timestamp > c.deadline, "Not expired");
@@ -345,7 +384,7 @@ contract WorkChainEscrow is ReentrancyGuard {
     }
 
     // ─── 12. Raise dispute ────────────────────────────────────
-    function raiseDispute(uint256 _contractId) external {
+    function raiseDispute(uint256 _contractId) external whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Active, "Not active");
         require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
@@ -354,20 +393,27 @@ contract WorkChainEscrow is ReentrancyGuard {
         emit ContractDisputed(_contractId);
     }
 
-    // ─── 13. Resolve dispute (AI oracle) ──────────────────────
-    function resolveDispute(uint256 _contractId, address _winner, uint256 _amount) external nonReentrant {
+    // ─── 13. Resolve dispute (oracle only) ────────────────────
+    function resolveDispute(uint256 _contractId, address _winner, uint256 _amount) external nonReentrant onlyOracle {
         WorkContract storage c = contracts[_contractId];
         require(c.status == ContractStatus.Disputed, "Not disputed");
         require(_winner == c.client || _winner == c.freelancer, "Invalid winner");
+        require(_amount <= c.totalAmount, "Amount exceeds contract total");
 
         c.status = ContractStatus.Resolved;
         require(USDC.transfer(_winner, _amount), "Transfer failed");
+
+        // Refund remainder to client if partial
+        uint256 remainder = c.totalAmount - _amount;
+        if (remainder > 0) {
+            require(USDC.transfer(c.client, remainder), "Remainder refund failed");
+        }
 
         emit ContractResolved(_contractId, _winner, _amount);
     }
 
     // ─── 14. Cancel contract ──────────────────────────────────
-    function cancelContract(uint256 _contractId) external nonReentrant {
+    function cancelContract(uint256 _contractId) external nonReentrant whenNotPaused {
         WorkContract storage c = contracts[_contractId];
         require(msg.sender == c.client || msg.sender == c.freelancer, "Not a party");
         require(c.status == ContractStatus.Proposed || c.status == ContractStatus.Active, "Cannot cancel");

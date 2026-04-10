@@ -5,12 +5,17 @@ import "forge-std/Script.sol";
 import "../src/WorkChainEscrow.sol";
 
 contract DeployWorkChainEscrow is Script {
-    // Base Sepolia USDC address
     address constant USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     function run() external {
         vm.startBroadcast();
-        new WorkChainEscrow(USDC);
+
+        // Deployer wallet acts as oracle initially
+        // Can be updated later via setOracle()
+        address deployer = msg.sender;
+
+        new WorkChainEscrow(USDC, deployer);
+
         vm.stopBroadcast();
     }
 }

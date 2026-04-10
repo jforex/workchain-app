@@ -1,4 +1,4 @@
-export const WORKCHAIN_ESCROW_ADDRESS = '0xAFf3CD437258b7Dd43631Ac8F29Ad2F271CC17b8' as const
+export const WORKCHAIN_ESCROW_ADDRESS = '0x2fA5f060aF56a1B2D4Ba168fC03946a1961B6160' as const
 
 export const WORKCHAIN_ESCROW_ABI = [
   {
@@ -146,6 +146,34 @@ export const WORKCHAIN_ESCROW_ABI = [
   },
   {
     type: 'function',
+    name: 'pause',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'unpause',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'setOracle',
+    inputs: [{ name: '_newOracle', type: 'address' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'setMaxContractAmount',
+    inputs: [{ name: '_newMax', type: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'getContract',
     inputs: [{ name: '_contractId', type: 'uint256' }],
     outputs: [
@@ -229,6 +257,27 @@ export const WORKCHAIN_ESCROW_ABI = [
     name: 'contractCount',
     inputs: [],
     outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'maxContractAmount',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'oracle',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'paused',
+    inputs: [],
+    outputs: [{ name: '', type: 'bool' }],
     stateMutability: 'view',
   },
 ] as const
